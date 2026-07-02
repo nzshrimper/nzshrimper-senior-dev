@@ -243,11 +243,14 @@ state; **inert** unless an active session exists in state.
 
 ### 10.1 Commit gate — PreToolUse on Bash
 
-Classifies each Bash command with a command-aware parser (`classifyCommand` in `commit-gate.mjs`): strips quoted spans, splits into
-segments on shell operators (`&&`, `||`, `;`, `|`, newlines), and gates a segment only when its leading token is exactly `git` or
-`gh`, skipping global flags and their values (e.g. `-C`, `--repo`) to reach the real subcommand. Both the commit and integration
-policies are evaluated per command (integration blockers checked first), and the one-shot bypass is consumed only when a block
-would otherwise fire — an allowed action never spends it. Policy (refined from the one-line design wording — see §13):
+Classifies each Bash command with a command-aware parser (`classifyCommand` in `commit-gate.mjs`): strips heredoc bodies, then
+quoted spans, splits into segments on shell operators (`&&`, `||`, `;`, `|`, newlines), skips leading `NAME=value` env
+assignments, and gates a segment only when its leading token is exactly `git` or `gh`, skipping global flags and their values
+(e.g. `-C`, `--repo`) to reach the real subcommand. Both the commit and integration policies are evaluated per command
+(integration blockers checked first), and the one-shot bypass is consumed only when a block would otherwise fire — an allowed
+action never spends it. Accepted evasion residue (cooperative-agent guardrail, documented in the task report): subshell/`bash
+-c`/`eval`/`xargs` wrappers, `$()` substitution contents, paren-glued final tokens, single-`&` compounds, and quoted `<<` /
+bare here-strings preceding a git line in the same call. Policy (refined from the one-line design wording — see §13):
 
 - **Inside the feature worktree/branch:** incremental commits allowed once
   the current phase records green tests (`testsGreenAt` set). This keeps the
