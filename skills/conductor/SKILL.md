@@ -36,9 +36,11 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/state-cli.mjs" <subcommand> [flags]
 | `investigation` | Read-only question answering |
 
 **Escalation rule:** a `quick-fix` that grows past 3 files or ~30 minutes is
-no longer a quick fix. Say so, then close the mini-session with
-`state-cli finish --force-open "escalating quick-fix to <type>"` (its gates
-are still open mid-escalation - that's expected) and re-init at the true type.
+no longer a quick fix. Tell the operator you are escalating, then close the
+mini-session with `state-cli finish --force-open "escalating quick-fix to
+<type>"` and immediately re-init at the stricter lane in the same turn (its
+gates are still open mid-escalation - that's expected; the logged bypass
+entry is the audit trail).
 
 ## Gates and bypass
 
@@ -50,7 +52,9 @@ are still open mid-escalation - that's expected) and re-init at the true type.
   you've reached the `finish` phase) while gate items are still open.
 - The ONLY waiver is `/senior-dev:bypass <reason>` - operator-initiated
   only; you never arm it yourself. `finish --force-open` likewise requires
-  operator sign-off.
+  operator sign-off - with ONE exception: the §1 escalation path, where you
+  announce the escalation and immediately re-init at the stricter lane in
+  the same turn (the logged bypass entry is the audit trail).
 
 ## 2. The chains
 
@@ -67,8 +71,9 @@ path the moment the phase's deliverable exists.
    `superpowers:test-driven-development`. After each green test run:
    `state-cli tests-green` (the commit gate requires it).
 5. `review`: see §3.
-6. `verify`: run the built-in `verify` skill (or `/review` on older
-   versions), then `superpowers:verification-before-completion`. Record:
+6. `verify`: run the built-in `verify` skill (if it isn't installed, record
+   a degrade and rely on the next step alone), then
+   `superpowers:verification-before-completion`. Record:
    `state-cli phase verify --status done`.
 7. `docs`: see §4.
 8. `finish`: see §5.
@@ -147,7 +152,9 @@ Steps 1-2 apply only to lanes with a diff to integrate. `docs-only` skips
 step 1 (no Codex pass on prose). `investigation` skips both 1 and 2 (no
 branch exists) and goes straight to the sweep.
 
-1. Codex final pass over the complete branch diff (same contract as §3).
+1. Final review passes - Claude `/code-review` + read-only Codex - over the
+   complete branch diff, same procedure and recording as §3, recorded as
+   `--phase finish`.
 2. `superpowers:finishing-a-development-branch` (merge/PR/discard menu).
 3. Hygiene sweep: `state-cli sweep` — then FIX anything it shows: stray
    worktrees, leftover branches, dirty status, surviving scratch files
