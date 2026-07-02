@@ -1686,7 +1686,13 @@ The operator wants to bypass a senior-dev gate. Their reason: $ARGUMENTS
 
 If the reason is empty, ask for one - a bypass without a reason is refused.
 
-Run: `node "${CLAUDE_PLUGIN_ROOT}/scripts/state-cli.mjs" bypass --reason "$ARGUMENTS"`
+Run:
+```
+node "${CLAUDE_PLUGIN_ROOT}/scripts/state-cli.mjs" bypass --reason-stdin <<'SENIOR_DEV_EOF'
+$ARGUMENTS
+SENIOR_DEV_EOF
+```
+(`--reason "$ARGUMENTS"` was the original form; it silently truncates reasons containing double quotes because $ARGUMENTS is textual template substitution — the quoted-heredoc stdin form records the reason verbatim. state-cli's `bypass` accepts `--reason <value>` for direct callers or the value-less `--reason-stdin` reading the reason from stdin.)
 
 Confirm to the operator: the NEXT gated action (commit/merge/push/PR) will be
 allowed through, the bypass is logged in session state, and it will appear in
