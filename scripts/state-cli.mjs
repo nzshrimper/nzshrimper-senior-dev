@@ -24,11 +24,21 @@ function parseFlags(argv) {
         flags[key] = next;
         i++;
       } else {
-        flags[key] = 'true';
+        // Value-less flag: distinct boolean sentinel, never the string 'true'.
+        flags[key] = true;
       }
     }
   }
   return flags;
+}
+
+// Flags that must carry a string value: reject value-less (boolean sentinel).
+function requireValues(cmdName, flags, keys) {
+  for (const key of keys) {
+    if (flags[key] !== undefined && typeof flags[key] !== 'string') {
+      fail(`${cmdName} needs a value for --${key}`);
+    }
+  }
 }
 
 function requireSession(repoRoot) {
@@ -54,6 +64,7 @@ const positional = rest.filter((a, i) => !a.startsWith('--') && (i === 0 || !res
 
 switch (cmd) {
   case 'init': {
+    requireValues('init', flags, ['task', 'type']);
     if (!flags.task) fail('init needs --task');
     if (!CHAINS[flags.type]) fail(`init needs --type, one of: ${Object.keys(CHAINS).join(', ')}`);
     const existing = readState(repoRoot);
@@ -81,6 +92,7 @@ switch (cmd) {
   }
   case 'phase': {
     const state = requireSession(repoRoot);
+    requireValues('phase', flags, ['status', 'artefact']);
     const name = positional[0];
     if (!name || !state.chain.includes(name)) fail(`phase must be one of: ${state.chain.join(', ')}`);
     if (!['in_progress', 'done'].includes(flags.status)) fail('phase needs --status in_progress|done');
@@ -101,10 +113,13 @@ switch (cmd) {
   }
   case 'review': {
     const state = requireSession(repoRoot);
-    if (!flags.phase || !flags.reviewer || !['APPROVED', 'NEEDS_REVISION'].includes(flags.verdict)) {
-      fail('review needs --phase --reviewer --verdict APPROVED|NEEDS_REVISION [--cycle n]');
-    }
-    const cycle = parseInt(flags.cycle || '1', 10);
+    requireValues('review', flags, ['phase', 'reviewer', 'verdict', 'cycle']);
+    if (!flags.phase) fail('review needs --phase <name>');
+    if (!['codex', 'claude'].includes(flags.reviewer)) fail('review needs --reviewer codex|claude');
+    if (!['APPROVED', 'NEEDS_REVISION'].includes(flags.verdict)) fail('review needs --verdict APPROVED|NEEDS_REVISION');
+    const cycleRaw = flags.cycle === undefined ? '1' : flags.cycle;
+    if (!/^[0-9]+$/.test(cycleRaw) || parseInt(cycleRaw, 10) < 1) fail('review needs --cycle as a positive integer 1-3');
+    const cycle = parseInt(cycleRaw, 10);
     if (cycle > 3) fail('cycle cap is 3 - stop iterating and escalate to the operator');
     state.reviews.push({
       phase: flags.phase, reviewer: flags.reviewer, verdict: flags.verdict,
@@ -119,6 +134,7 @@ switch (cmd) {
     let touched = false;
     for (const key of Object.keys(state.docsGate)) {
       if (flags[key] !== undefined) {
+        if (flags[key] !== 'true' && flags[key] !== 'false') fail(`docs --${key} needs an explicit true|false`);
         state.docsGate[key] = flags[key] === 'true';
         touched = true;
       }
@@ -130,6 +146,7 @@ switch (cmd) {
   }
   case 'degrade': {
     const state = requireSession(repoRoot);
+    requireValues('degrade', flags, ['wanted', 'used', 'reason']);
     if (!flags.wanted || !flags.used) fail('degrade needs --wanted --used [--reason]');
     state.degradations.push({ wanted: flags.wanted, used: flags.used, reason: flags.reason || '', at: new Date().toISOString() });
     writeState(repoRoot, state);
@@ -138,7 +155,7 @@ switch (cmd) {
   }
   case 'bypass': {
     const state = requireSession(repoRoot);
-    if (!flags.reason || flags.reason === 'true' || !flags.reason.trim()) fail('bypass needs --reason "<why>"');
+    if (typeof flags.reason !== 'string' || !flags.reason.trim()) fail('bypass needs --reason "<why>"');
     state.bypassArmed = { reason: flags.reason, at: new Date().toISOString() };
     writeState(repoRoot, state);
     console.log(`bypass armed (one-shot) - reason logged: ${flags.reason}`);
@@ -146,6 +163,7 @@ switch (cmd) {
   }
   case 'scratch': {
     const state = requireSession(repoRoot);
+    requireValues('scratch', flags, ['add']);
     if (!flags.add) fail('scratch needs --add <path>');
     state.scratchFiles = state.scratchFiles || [];
     state.scratchFiles.push(flags.add);

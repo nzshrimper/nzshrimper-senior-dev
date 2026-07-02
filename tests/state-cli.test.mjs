@@ -92,6 +92,34 @@ test('sweep prints git evidence sections', () => {
   assert.ok(r.out.includes('git status --porcelain'));
 });
 
+test('flags that require a value reject missing values', () => {
+  const repo = makeRepo();
+  // --task at end of argv must not become task:"true"
+  assert.equal(cli(repo, ['init', '--type', 'feature', '--task']).status, 1);
+  assert.equal(readState(repo), null);
+  cli(repo, ['init', '--task', 'x', '--type', 'feature']);
+  // --wanted followed by another flag must not become wanted:"true"
+  assert.equal(cli(repo, ['degrade', '--wanted', '--used', 'x']).status, 1);
+  assert.equal(readState(repo).degradations.length, 0);
+  // --add at end of argv must not record "true"
+  assert.equal(cli(repo, ['scratch', '--add']).status, 1);
+  assert.equal(readState(repo).scratchFiles.length, 0);
+});
+
+test('review rejects bogus reviewer and non-numeric cycle', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'feature']);
+  assert.equal(
+    cli(repo, ['review', '--phase', 'implement', '--reviewer', 'bob', '--verdict', 'APPROVED', '--cycle', '1']).status,
+    1,
+  );
+  assert.equal(
+    cli(repo, ['review', '--phase', 'implement', '--reviewer', 'codex', '--verdict', 'APPROVED', '--cycle', 'abc']).status,
+    1,
+  );
+  assert.equal(readState(repo).reviews.length, 0);
+});
+
 test('finish archives and clears active state', () => {
   const repo = makeRepo();
   cli(repo, ['init', '--task', 'Fix the thing!', '--type', 'quick-fix']);
