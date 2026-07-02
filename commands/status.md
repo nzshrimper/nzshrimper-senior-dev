@@ -1,6 +1,5 @@
 ---
 description: Show the senior-dev session state - phases, gates, reviews, degradations, bypasses
-disable-model-invocation: false
 allowed-tools: Bash(node:*)
 ---
 

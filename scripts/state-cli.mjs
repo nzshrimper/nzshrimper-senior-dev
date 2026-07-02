@@ -248,6 +248,26 @@ switch (cmd) {
   }
   case 'finish': {
     const state = requireSession(repoRoot);
+    requireValues('finish', flags, ['force-open']);
+    // Running `finish` completes the chain's final phase, so mark it done
+    // BEFORE computing open gate items - otherwise phase:finish would always
+    // read as open and every close would demand --force-open.
+    state.phases.finish = { ...(state.phases.finish || {}), status: 'done' };
+    const open = openGateItems(state);
+    if (open.length) {
+      const forceOpen = flags['force-open'];
+      if (forceOpen === undefined) {
+        fail(`finish refused - open gate items:\n  - ${open.join('\n  - ')}\nResolve them, run the missing phases/gates, or (operator sign-off only) re-run with --force-open "<reason>".`);
+      }
+      if (!forceOpen.trim()) fail('finish --force-open needs a non-empty reason');
+      state.bypasses = state.bypasses || [];
+      state.bypasses.push({
+        at: new Date().toISOString(),
+        reason: forceOpen,
+        action: 'finish --force-open',
+        openItems: open,
+      });
+    }
     state.closedAt = new Date().toISOString();
     const slug = state.task.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'session';
     const histDir = join(repoRoot, '.senior-dev', 'history');

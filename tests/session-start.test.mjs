@@ -27,6 +27,7 @@ test('in a repo with no session: emits bootstrap context', () => {
   assert.equal(out.hookSpecificOutput.hookEventName, 'SessionStart');
   assert.ok(ctx.includes('senior-dev:conductor'));
   assert.ok(!ctx.includes('RESUME'));
+  assert.ok(ctx.includes('state-cli.mjs'));
 });
 
 test('in a repo with an active session: emits resume notice', () => {
@@ -42,6 +43,7 @@ test('in a repo with an active session: emits resume notice', () => {
   assert.ok(ctx.includes('RESUME'));
   assert.ok(ctx.includes('half-done widget'));
   assert.ok(ctx.includes('worktree'));
+  assert.ok(ctx.includes('state-cli.mjs'));
 });
 
 test('malformed stdin: still works from process cwd', () => {
@@ -49,4 +51,5 @@ test('malformed stdin: still works from process cwd', () => {
   execFileSync('git', ['init', '-q', repo]);
   const out = execFileSync('node', [SCRIPT], { cwd: repo, encoding: 'utf8', input: 'not-json' });
   assert.ok(out.includes('senior-dev:conductor'));
+  assert.ok(out.includes('state-cli.mjs'));
 });

@@ -171,13 +171,53 @@ test('review rejects bogus reviewer and non-numeric cycle', () => {
   assert.equal(readState(repo).reviews.length, 0);
 });
 
-test('finish archives and clears active state', () => {
+test('finish archives and clears active state when all gates are clear', () => {
   const repo = makeRepo();
   cli(repo, ['init', '--task', 'Fix the thing!', '--type', 'quick-fix']);
+  cli(repo, ['phase', 'implement', '--status', 'done']);
+  cli(repo, ['phase', 'review', '--status', 'done']);
+  cli(repo, ['phase', 'verify', '--status', 'done']);
+  cli(repo, ['docs', '--handover', 'true', '--affectedDocs', 'true']);
+  cli(repo, ['phase', 'docs', '--status', 'done']);
   const r = cli(repo, ['finish']);
   assert.equal(r.status, 0);
   assert.ok(!existsSync(statePath(repo)));
   const hist = readdirSync(join(repo, '.senior-dev', 'history'));
   assert.equal(hist.length, 1);
   assert.ok(hist[0].endsWith('.json'));
+});
+
+test('finish refuses when gate items are open, listing them, and leaves state intact', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);
+  const r = cli(repo, ['finish']);
+  assert.equal(r.status, 1);
+  assert.ok(r.out.includes('phase:implement'));
+  assert.ok(existsSync(statePath(repo)));
+  assert.equal(readdirSync(join(repo, '.senior-dev')).includes('history'), false);
+});
+
+test('finish --force-open with a reason archives despite open items and logs the bypass in the archived file', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);
+  const r = cli(repo, ['finish', '--force-open', 'operator says ship it']);
+  assert.equal(r.status, 0);
+  assert.ok(!existsSync(statePath(repo)));
+  const hist = readdirSync(join(repo, '.senior-dev', 'history'));
+  assert.equal(hist.length, 1);
+  const archived = JSON.parse(readFileSync(join(repo, '.senior-dev', 'history', hist[0]), 'utf8'));
+  const bypass = archived.bypasses.find((b) => b.action === 'finish --force-open');
+  assert.ok(bypass, 'expected a finish --force-open bypass entry in the archived state');
+  assert.equal(bypass.reason, 'operator says ship it');
+  assert.ok(Array.isArray(bypass.openItems) && bypass.openItems.length > 0);
+  assert.ok(bypass.openItems.includes('phase:implement'));
+  assert.ok(bypass.at);
+});
+
+test('finish --force-open without a value exits 1 and leaves state intact', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);
+  const r = cli(repo, ['finish', '--force-open']);
+  assert.equal(r.status, 1);
+  assert.ok(existsSync(statePath(repo)));
 });

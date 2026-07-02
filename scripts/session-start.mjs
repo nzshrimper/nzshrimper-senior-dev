@@ -2,14 +2,21 @@
 // SessionStart bootstrap: in a git repo, tell the session the conductor
 // exists (and whether a session is in flight). Outside a repo: silence.
 // Fail open: any error -> exit 0, no output.
+import { fileURLToPath } from 'node:url';
 import {
   findRepoRoot, readState, hasActiveSession, currentPhase, openGateItems,
 } from './lib/state.mjs';
+
+// state-cli.mjs is a sibling of this file (both live in scripts/); resolve
+// it from our own location so the operator always has a working path even
+// when $CLAUDE_PLUGIN_ROOT is unset in their shell.
+const STATE_CLI_PATH = fileURLToPath(new URL('./state-cli.mjs', import.meta.url));
 
 const BOOTSTRAP = `<IMPORTANT>
 This repo is under senior-dev orchestration.
 Before starting ANY coding task (feature, bug fix, refactor, quick fix, docs change), you MUST invoke the 'senior-dev:conductor' skill. It classifies the task, selects the mandatory skill chain from the installed skills, and records phase state. Commit/integration and session-stop gates are armed while a session is active.
 Commands: /senior-dev:start [task] | /senior-dev:status | /senior-dev:bypass <reason> | /senior-dev:finish
+State CLI: node ${STATE_CLI_PATH} (use this exact path; $CLAUDE_PLUGIN_ROOT may be unset in your shell)
 </IMPORTANT>`;
 
 async function readStdin() {
