@@ -1,0 +1,19 @@
+{
+  "name": "senior-dev-local",
+  "owner": {
+    "name": "Chris Bennett",
+    "email": "nzshrimper@gmail.com"
+  },
+  "metadata": {
+    "description": "Local marketplace for the senior-dev session orchestrator plugin",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "senior-dev",
+      "source": "./",
+      "description": "Senior-dev session orchestrator: skill routing, hard gates, Codex phase reviews, docs gate, hygiene sweep.",
+      "version": "0.1.0"
+    }
+  ]
+}
