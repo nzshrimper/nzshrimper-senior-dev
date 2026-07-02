@@ -291,7 +291,7 @@ After `finishing-a-development-branch`'s merge/PR/discard menu:
 - scratch/temp files created during the session (tracked in state) → gone
 - verification runs against the **pushed/remote** end of the chain where one
   exists, not just local state (standing rule: check the deployed end)
-- state file archived to `.senior-dev/history/<date>-<slug>.json`, active
+- state file archived to `.senior-dev/history/<full-timestamp>-<slug>.json`, active
   state cleared
 
 The finish summary reports each check with its actual command output — 
