@@ -8,7 +8,12 @@ The operator wants to bypass a senior-dev gate. Their reason: $ARGUMENTS
 
 If the reason is empty, ask for one - a bypass without a reason is refused.
 
-Run: `node "${CLAUDE_PLUGIN_ROOT}/scripts/state-cli.mjs" bypass --reason "$ARGUMENTS"`
+Run:
+```
+node "${CLAUDE_PLUGIN_ROOT}/scripts/state-cli.mjs" bypass --reason-stdin <<'SENIOR_DEV_EOF'
+$ARGUMENTS
+SENIOR_DEV_EOF
+```
 
 Confirm to the operator: the NEXT gated action (commit/merge/push/PR) will be
 allowed through, the bypass is logged in session state, and it will appear in

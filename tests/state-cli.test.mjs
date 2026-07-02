@@ -67,6 +67,57 @@ test('bypass requires a reason and arms one-shot flag', () => {
   assert.equal(readState(repo).bypassArmed.reason, 'operator hotfix');
 });
 
+test('bypass --reason-stdin records a reason containing double quotes verbatim', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);
+  const reason = 'he said " I dunno " do it anyway';
+  const r = cli(repo, ['bypass', '--reason-stdin'], { input: reason });
+  assert.equal(r.status, 0);
+  assert.equal(readState(repo).bypassArmed.reason, reason);
+});
+
+test('bypass --reason-stdin records a multi-word reason with a leading -- prefix verbatim', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);
+  const reason = '--force just ship it, ignore the warning';
+  const r = cli(repo, ['bypass', '--reason-stdin'], { input: reason });
+  assert.equal(r.status, 0);
+  assert.equal(readState(repo).bypassArmed.reason, reason);
+});
+
+test('bypass --reason-stdin trims surrounding whitespace but rejects empty/whitespace-only stdin', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);
+  const padded = cli(repo, ['bypass', '--reason-stdin'], { input: '  reason with padding  \n' });
+  assert.equal(padded.status, 0);
+  assert.equal(readState(repo).bypassArmed.reason, 'reason with padding');
+
+  const empty = cli(repo, ['bypass', '--reason-stdin'], { input: '   \n  ' });
+  assert.equal(empty.status, 1);
+});
+
+test('plain --reason still works when --reason-stdin is not given', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);
+  const r = cli(repo, ['bypass', '--reason', 'direct caller reason']);
+  assert.equal(r.status, 0);
+  assert.equal(readState(repo).bypassArmed.reason, 'direct caller reason');
+});
+
+test('bypass with neither --reason nor --reason-stdin exits 1', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);
+  const r = cli(repo, ['bypass']);
+  assert.equal(r.status, 1);
+});
+
+test('bypass rejects --reason and --reason-stdin given together', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);
+  const r = cli(repo, ['bypass', '--reason', 'x', '--reason-stdin'], { input: 'y' });
+  assert.equal(r.status, 1);
+});
+
 test('status renders without crashing and mentions task + phase', () => {
   const repo = makeRepo();
   cli(repo, ['init', '--task', 'my task', '--type', 'feature']);

@@ -14,6 +14,16 @@ function fail(msg) {
   process.exit(1);
 }
 
+// Reads the entire stdin stream. Only ever invoked from the `bypass`
+// subcommand when `--reason-stdin` is explicitly given, so every other
+// subcommand invocation never touches stdin and can never hang on it.
+async function readStdin() {
+  let data = '';
+  process.stdin.setEncoding('utf8');
+  for await (const chunk of process.stdin) data += chunk;
+  return data;
+}
+
 function parseFlags(argv) {
   const flags = {};
   for (let i = 0; i < argv.length; i++) {
@@ -155,10 +165,31 @@ switch (cmd) {
   }
   case 'bypass': {
     const state = requireSession(repoRoot);
-    if (typeof flags.reason !== 'string' || !flags.reason.trim()) fail('bypass needs --reason "<why>"');
-    state.bypassArmed = { reason: flags.reason, at: new Date().toISOString() };
+    const stdinFlag = flags['reason-stdin'];
+    if (stdinFlag !== undefined && stdinFlag !== true) {
+      fail('bypass --reason-stdin does not take a value');
+    }
+    const useStdin = stdinFlag === true;
+    if (useStdin && typeof flags.reason === 'string') {
+      fail('bypass needs --reason "<why>" or --reason-stdin, not both');
+    }
+    const needBoth = 'bypass needs --reason "<why>" or --reason-stdin (reason read verbatim from stdin)';
+    let reason;
+    if (useStdin) {
+      // Read the ENTIRE stdin text as the reason so quotes, backslashes,
+      // leading `--`, and multi-word text all survive verbatim - argv-based
+      // --reason is textual template substitution ($ARGUMENTS) and breaks
+      // shell quoting on those inputs, silently truncating the recorded
+      // reason. Only reached when --reason-stdin is explicitly passed.
+      reason = (await readStdin()).trim();
+      if (!reason) fail(needBoth);
+    } else {
+      if (typeof flags.reason !== 'string' || !flags.reason.trim()) fail(needBoth);
+      reason = flags.reason;
+    }
+    state.bypassArmed = { reason, at: new Date().toISOString() };
     writeState(repoRoot, state);
-    console.log(`bypass armed (one-shot) - reason logged: ${flags.reason}`);
+    console.log(`bypass armed (one-shot) - reason logged: ${reason}`);
     break;
   }
   case 'scratch': {
