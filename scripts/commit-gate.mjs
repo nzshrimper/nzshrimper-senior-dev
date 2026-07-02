@@ -2,7 +2,8 @@
 // PreToolUse(Bash) gate. Worktree commits need green tests during
 // implement/debug; integration (merge/push/PR) needs approved reviews,
 // verification, and a full docs gate. Fail open on any error.
-import { fileURLToPath } from 'node:url';
+import { pathToFileURL } from 'node:url';
+import { realpathSync } from 'node:fs';
 import {
   findRepoRoot, readState, hasActiveSession, currentPhase,
   integrationBlockers, consumeBypass,
@@ -14,13 +15,42 @@ const TEST_GATED_PHASES = new Set(['implement', 'debug']);
 // token rather than `--flag=value`). Applies to both `git` and `gh`.
 const VALUE_FLAGS = new Set(['-C', '-c', '--git-dir', '--work-tree', '-R', '--repo']);
 
+// Remove heredoc bodies: on a line containing <<[-]['"]?WORD['"]?, drop
+// everything after that line up to and including the terminator line
+// (^\s*WORD\s*$), or to the end of input when unterminated. The marker line
+// itself is kept, so `git push <<EOF` still classifies while the body's
+// free text never does.
+function stripHeredocBodies(command) {
+  const lines = command.split('\n');
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    out.push(lines[i]);
+    const m = lines[i].match(/<<-?\s*(['"]?)(\w+)\1/);
+    if (m) {
+      const terminator = new RegExp(`^\\s*${m[2]}\\s*$`);
+      let j = i + 1;
+      while (j < lines.length && !terminator.test(lines[j])) j++;
+      i = j; // skip body and terminator (or everything, if unterminated)
+    }
+  }
+  return out.join('\n');
+}
+
 // Command-aware classifier: replaces the old regex match (defeatable by
 // `git -C <path> push`, quoted strings, `commit-graph`/`commit-tree`, etc).
-// Strips quoted spans, splits into shell segments, and only classifies a
-// segment when its FIRST token is exactly `git` or `gh`, walking past
-// leading flags (and their values) to find the real subcommand.
+// Strips heredoc bodies and quoted spans, splits into shell segments, and
+// only classifies a segment when its first token (after leading NAME=value
+// env assignments) is exactly `git` or `gh`, walking past leading flags
+// (and their values) to find the real subcommand.
 export function classifyCommand(command) {
-  const stripped = command.replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, '');
+  // Heredocs BEFORE quotes: the delimiter may itself be quoted (<<'EOF'),
+  // and quote-stripping first would erase the delimiter while leaving the
+  // body lines behind as apparent commands. The canonical
+  // `git commit -m "$(cat <<'EOF' ... EOF)"` form survives this order: the
+  // body and terminator are dropped, then the remaining double-quoted span
+  // (still containing the marker) is stripped, leaving `git commit -m`.
+  const noHeredocs = stripHeredocBodies(command);
+  const stripped = noHeredocs.replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, '');
   const segments = stripped.split(/&&|\|\||;|\n|\|/);
 
   let commit = false;
@@ -28,8 +58,12 @@ export function classifyCommand(command) {
 
   for (const segment of segments) {
     const tokens = segment.trim().split(/\s+/).filter(Boolean);
-    if (tokens.length === 0) continue;
-    const [head, ...rest] = tokens;
+    // Skip leading NAME=value env assignments (HUSKY=0 git commit ...).
+    let t = 0;
+    while (t < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[t])) t++;
+    if (t >= tokens.length) continue;
+    const head = tokens[t];
+    const rest = tokens.slice(t + 1);
     if (head !== 'git' && head !== 'gh') continue;
 
     let i = 0;
@@ -117,7 +151,20 @@ async function main() {
 // Only run the PreToolUse hook body when this file is executed directly
 // (as the hook script). When it's `import`-ed (e.g. by tests pulling in
 // `classifyCommand`), evaluating the module must NOT block on stdin.
-const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+//
+// argv[1] keeps the as-invoked path while Node realpaths import.meta.url,
+// so realpath argv[1] before comparing — a naive equality check silently
+// disables the ENTIRE gate whenever the invocation path crosses a symlink
+// or alias (macOS /tmp -> /private/tmp, symlinked plugin/skill installs).
+// If the comparison itself fails for any reason, default to RUNNING the
+// hook: main() has its own fail-open logic, but a guard failure must fail
+// INTO the gate, never silently off.
+let isMainModule;
+try {
+  isMainModule = pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url;
+} catch {
+  isMainModule = true;
+}
 if (isMainModule) {
   await main();
 }

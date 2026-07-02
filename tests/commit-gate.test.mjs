@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -211,6 +211,84 @@ test('commit+push chain during implement with no green tests is blocked via the 
   const r = gate(repo, 'git commit -m prep && git push');
   assert.equal(r.blocked, true);
   assert.ok(r.msg.includes('tests-green'), r.msg);
+});
+
+// --- re-review fixes: symlink-safe main guard, env prefixes, heredoc bodies ---
+
+test('classifyCommand: leading env assignments are skipped', () => {
+  assert.deepEqual(classifyCommand('HUSKY=0 git commit -m x'), { commit: true, integration: false });
+  assert.deepEqual(classifyCommand('GIT_PAGER=cat git push'), { commit: false, integration: true });
+  assert.deepEqual(classifyCommand('FOO=1 BAR=two gh pr create --fill'), { commit: false, integration: true });
+  assert.deepEqual(classifyCommand('FOO=1'), { commit: false, integration: false });
+});
+
+test('classifyCommand: heredoc bodies are not classified, marker line still is', () => {
+  const heredocWrite = "cat > notes.md <<'EOF'\nReminder list:\ngit push origin main\nEOF";
+  assert.deepEqual(classifyCommand(heredocWrite), { commit: false, integration: false });
+  // marker line itself is still live shell text
+  assert.deepEqual(classifyCommand('git push <<EOF\nnot a command\nEOF'), { commit: false, integration: true });
+  // unterminated heredoc: body stripped to end of input, marker line still classified
+  assert.deepEqual(classifyCommand('git push <<EOF\ngit merge feat'), { commit: false, integration: true });
+});
+
+test('classifyCommand: canonical heredoc commit-message form still classifies as commit', () => {
+  const cmd = 'git commit -m "$(cat <<\'EOF\'\nfix: something\n\ngit push is mentioned here\nEOF\n)"';
+  assert.deepEqual(classifyCommand(cmd), { commit: true, integration: false });
+});
+
+test('env-prefixed commit is gated: HUSKY=0 git commit blocked during implement without green tests', () => {
+  const repo = makeRepo();
+  const phases = { brainstorm: { status: 'done' }, worktree: { status: 'done' }, plan: { status: 'done' } };
+  writeState(repo, featureState({ phases: { ...phases, implement: { status: 'in_progress' } } }));
+  const r = gate(repo, 'HUSKY=0 git commit -m x');
+  assert.equal(r.blocked, true);
+  assert.ok(r.msg.includes('tests-green'));
+});
+
+test('env-prefixed push is gated: FOO=1 git push blocked when blockers exist', () => {
+  const repo = makeRepo();
+  writeState(repo, featureState());
+  const r = gate(repo, 'FOO=1 git push');
+  assert.equal(r.blocked, true);
+  assert.ok(r.msg.includes('/senior-dev:status'));
+});
+
+test('heredoc body mentioning git push does not block the write', () => {
+  const repo = makeRepo();
+  writeState(repo, featureState()); // blockers exist, active session
+  const cmd = "cat > notes.md <<'EOF'\nReminder list:\ngit push origin main\nEOF";
+  assert.equal(gate(repo, cmd).blocked, false);
+});
+
+test('canonical heredoc commit-message form is still gated as a commit', () => {
+  const repo = makeRepo();
+  const phases = { brainstorm: { status: 'done' }, worktree: { status: 'done' }, plan: { status: 'done' } };
+  writeState(repo, featureState({ phases: { ...phases, implement: { status: 'in_progress' } } }));
+  const cmd = 'git commit -m "$(cat <<\'EOF\'\nfix: something\n\ndetail line\nEOF\n)"';
+  const r = gate(repo, cmd);
+  assert.equal(r.blocked, true);
+  assert.ok(r.msg.includes('tests-green'));
+});
+
+test('gate still blocks when the hook script is invoked via a symlinked path', () => {
+  const repo = makeRepo();
+  writeState(repo, featureState()); // blockers exist
+  const linkDir = mkdtempSync(join(tmpdir(), 'sd-cg-link-'));
+  const link = join(linkDir, 'commit-gate-link.mjs');
+  symlinkSync(SCRIPT, link);
+  let status = 0;
+  let stderr = '';
+  try {
+    execFileSync('node', [link], {
+      encoding: 'utf8',
+      input: JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'git push' }, cwd: repo }),
+    });
+  } catch (e) {
+    status = e.status;
+    stderr = e.stderr || '';
+  }
+  assert.equal(status, 2, 'symlinked invocation must still run the gate');
+  assert.ok(stderr.includes('/senior-dev:status'));
 });
 
 test('bypass is consumed only by an action that would otherwise be blocked', () => {
