@@ -84,7 +84,7 @@ export function classifyCommand(command) {
       }
     } else {
       // gh
-      if (rest[i] === 'pr' && rest[i + 1] === 'create') {
+      if (rest[i] === 'pr' && (rest[i + 1] === 'create' || rest[i + 1] === 'merge')) {
         integration = true;
       }
     }

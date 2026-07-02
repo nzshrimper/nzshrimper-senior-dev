@@ -29,7 +29,24 @@ export const DOCS_GATE = {
 // Lanes where a recorded review is not demanded before integration.
 const REVIEW_EXEMPT = new Set(['docs-only', 'investigation']);
 
+// Resolves the MAIN checkout root, not the cwd's worktree root: inside a
+// linked worktree (`git worktree add`), `git rev-parse --show-toplevel`
+// returns the WORKTREE's own root, which has no .senior-dev/state.json -
+// that made the CLI and both hard gates go inert from the feature lane's
+// standard worktree flow. `--git-common-dir` instead always points at the
+// ONE shared .git directory: for the main checkout that's <root>/.git, and
+// for every linked worktree it's still <main>/.git, so its dirname is the
+// main checkout root in both cases. Falls back to --show-toplevel if
+// --path-format is unsupported by the installed git rather than breaking.
 export function findRepoRoot(cwd = process.cwd()) {
+  try {
+    const out = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
+      cwd, stdio: ['ignore', 'pipe', 'ignore'],
+    }).toString().trim();
+    if (out) return dirname(out);
+  } catch {
+    // fall through to the --show-toplevel fallback below
+  }
   try {
     const out = execFileSync('git', ['rev-parse', '--show-toplevel'], {
       cwd, stdio: ['ignore', 'pipe', 'ignore'],

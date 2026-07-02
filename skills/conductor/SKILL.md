@@ -64,7 +64,11 @@ path the moment the phase's deliverable exists.
 
 **feature** — `brainstorm → worktree → plan → implement → review → verify → docs → finish`
 1. `brainstorm`: invoke `superpowers:brainstorming`. Artefact: committed spec.
-2. `worktree`: invoke `superpowers:using-git-worktrees`.
+2. `worktree`: invoke `superpowers:using-git-worktrees`. Session state lives
+   at `.senior-dev/state.json` in the MAIN checkout, not the worktree - the
+   state CLI and both hard gates resolve the main checkout root
+   automatically, so they keep working unchanged once you `cd` into the
+   worktree.
 3. `plan`: invoke `superpowers:writing-plans`. Artefact: committed plan.
 4. `implement`: invoke `superpowers:subagent-driven-development` (or
    `superpowers:executing-plans` inline) with

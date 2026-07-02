@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -110,6 +110,19 @@ test('classifyCommand: plain git commit/push/merge/subcommands', () => {
   assert.deepEqual(classifyCommand('git push origin main'), { commit: false, integration: true });
   assert.deepEqual(classifyCommand('git merge feat'), { commit: false, integration: true });
   assert.deepEqual(classifyCommand('gh pr create --fill'), { commit: false, integration: true });
+});
+
+test('classifyCommand: gh pr merge is integration, same as gh pr create', () => {
+  assert.deepEqual(classifyCommand('gh pr merge 12 --squash'), { commit: false, integration: true });
+  assert.deepEqual(classifyCommand('gh pr merge --auto'), { commit: false, integration: true });
+});
+
+test('gh pr merge is blocked when integration blockers exist', () => {
+  const repo = makeRepo();
+  writeState(repo, featureState());
+  const r = gate(repo, 'gh pr merge 12 --squash');
+  assert.equal(r.blocked, true);
+  assert.ok(r.msg.includes('/senior-dev:status'));
 });
 
 test('classifyCommand: global-flag skipping (-C, -c, --git-dir, --work-tree, -R, --repo)', () => {
@@ -305,4 +318,18 @@ test('bypass is consumed only by an action that would otherwise be blocked', () 
   assert.equal(s.bypasses[0].reason, 'hotfix');
   // bypass now spent - next blocked action blocks for real
   assert.equal(gate(repo, 'git push').blocked, true);
+});
+
+test('commit-gate blocks from inside a linked worktree when the main checkout has a must-block state', () => {
+  const repo = makeRepo();
+  writeFileSync(join(repo, 'README.md'), 'x');
+  execFileSync('git', ['add', '.'], { cwd: repo });
+  execFileSync('git', ['-c', 'user.email=t@t.com', '-c', 'user.name=t', 'commit', '-q', '-m', 'init'], { cwd: repo });
+  writeState(repo, featureState()); // active session with open blockers
+  const wtParent = mkdtempSync(join(tmpdir(), 'sd-cg-wt-'));
+  const wt = join(wtParent, 'wt');
+  execFileSync('git', ['worktree', 'add', wt, '-b', 'wtbranch'], { cwd: repo });
+  const r = gate(wt, 'git push origin main');
+  assert.equal(r.blocked, true);
+  assert.ok(r.msg.includes('/senior-dev:status'));
 });

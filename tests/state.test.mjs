@@ -49,6 +49,28 @@ function realpath(p) {
   return execFileSync('realpath', [p]).toString().trim();
 }
 
+function commit(repo) {
+  writeFileSync(join(repo, 'README.md'), 'x');
+  execFileSync('git', ['add', '.'], { cwd: repo });
+  execFileSync('git', ['-c', 'user.email=t@t.com', '-c', 'user.name=t', 'commit', '-q', '-m', 'init'], { cwd: repo });
+}
+
+function addWorktree(repo, dirPrefix) {
+  const parent = mkdtempSync(join(tmpdir(), dirPrefix));
+  const wt = join(parent, 'wt');
+  execFileSync('git', ['worktree', 'add', wt, '-b', 'wtbranch'], { cwd: repo });
+  return wt;
+}
+
+test('findRepoRoot resolves the MAIN checkout root from inside a linked worktree', () => {
+  const repo = makeRepo();
+  commit(repo);
+  const wt = addWorktree(repo, 'sd-wt-');
+  const sub = join(wt, 'nested');
+  mkdirSync(sub, { recursive: true });
+  assert.equal(realpath(findRepoRoot(sub)), realpath(repo));
+});
+
 test('read/write state roundtrip', () => {
   const repo = makeRepo();
   const s = activeState();

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, existsSync, readdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -220,4 +220,33 @@ test('finish --force-open without a value exits 1 and leaves state intact', () =
   const r = cli(repo, ['finish', '--force-open']);
   assert.equal(r.status, 1);
   assert.ok(existsSync(statePath(repo)));
+});
+
+test('finish uses a unique archive filename per session so a same-day same-slug re-finish does not overwrite the prior archive', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'escalation task', '--type', 'quick-fix']);
+  cli(repo, ['finish', '--force-open', 'first pass bypass']);
+  cli(repo, ['init', '--task', 'escalation task', '--type', 'quick-fix']);
+  cli(repo, ['finish', '--force-open', 'second pass bypass']);
+  const histDir = join(repo, '.senior-dev', 'history');
+  const hist = readdirSync(histDir);
+  assert.equal(hist.length, 2, `expected two distinct archive files, got: ${hist.join(', ')}`);
+  const contents = hist.map((f) => JSON.parse(readFileSync(join(histDir, f), 'utf8')));
+  const first = contents.find((c) => (c.bypasses || []).some((b) => b.reason === 'first pass bypass'));
+  assert.ok(first, 'the first archive (with the "first pass bypass" audit entry) must still exist, unoverwritten');
+});
+
+test('status FROM inside a linked worktree reports the main checkout\'s active session', () => {
+  const repo = makeRepo();
+  writeFileSync(join(repo, 'README.md'), 'x');
+  execFileSync('git', ['add', '.'], { cwd: repo });
+  execFileSync('git', ['-c', 'user.email=t@t.com', '-c', 'user.name=t', 'commit', '-q', '-m', 'init'], { cwd: repo });
+  cli(repo, ['init', '--task', 'worktree flow task', '--type', 'feature']);
+  const wtParent = mkdtempSync(join(tmpdir(), 'sd-cli-wt-'));
+  const wt = join(wtParent, 'wt');
+  execFileSync('git', ['worktree', 'add', wt, '-b', 'wtbranch'], { cwd: repo });
+  const r = cli(wt, ['status']);
+  assert.equal(r.status, 0);
+  assert.ok(r.out.includes('worktree flow task'));
+  assert.ok(!r.out.toLowerCase().includes('no active session'));
 });

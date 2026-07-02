@@ -272,7 +272,12 @@ switch (cmd) {
     const slug = state.task.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'session';
     const histDir = join(repoRoot, '.senior-dev', 'history');
     mkdirSync(histDir, { recursive: true });
-    const dest = join(histDir, `${state.closedAt.slice(0, 10)}-${slug}.json`);
+    // Full timestamp (filesystem-safe: ':' and '.' -> '-'), not just the date,
+    // so a same-day same-slug re-finish (the §1 escalation path re-inits the
+    // SAME task) gets a distinct filename instead of renameSync silently
+    // overwriting the prior archive - including its bypass audit trail.
+    const stamp = state.closedAt.replace(/[:.]/g, '-');
+    const dest = join(histDir, `${stamp}-${slug}.json`);
     writeState(repoRoot, state);
     renameSync(statePath(repoRoot), dest);
     console.log(`session closed and archived: ${dest}`);
