@@ -3,7 +3,10 @@
 **Updated:** 2026-07-03
 **State:** v0.1.0 built, merged to main (`be03cf9`), tagged. 81/81 tests green
 (`node --test tests/*.test.mjs`). Installed via local marketplace
-`senior-dev-local` — hooks load after the next Claude Code restart.
+`senior-dev-local`. **Live smoke PASSED 10/10 (2026-07-03)** — all `tests/SMOKE.md`
+items verified in a throwaway repo via nested `claude -p --resume` sessions,
+including item 7's bypass `$ARGUMENTS` heredoc (reason recorded verbatim,
+one-shot consumed, visible in status). No open items.
 
 ## What this is
 
@@ -27,11 +30,9 @@ close, worktree-aware repo-root resolution, unique archive filenames.
 
 ## Remaining
 
-1. **Live smoke** — `tests/SMOKE.md`, 10 items, run in a throwaway repo after
-   restart. Item 7 (bypass `$ARGUMENTS` substitution) is the one thing only a
-   live installed session can verify.
-2. Accepted Minor residuals are listed in the final-review triage (git history
-   and the two review-fix commits document them); none block use.
+Nothing blocking. The live smoke is done (see State above). Accepted Minor
+residuals are listed in the final-review triage (git history and the two
+review-fix commits document them); none block use.
 
 ## Update flow
 
