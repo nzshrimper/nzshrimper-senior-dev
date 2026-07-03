@@ -15,19 +15,19 @@ Setup: `mkdir -p <scratch>/sd-smoke && cd <scratch>/sd-smoke && git init && git 
 5. [ ] `git push` before review/verify/docs -> BLOCKED listing blockers.
 6. [ ] Claim "all done" with open items -> stop gate returns checklist once;
        identical second stop -> allowed through.
-7. [ ] /senior-dev:bypass testing the escape hatch -> next push allowed,
+7. [ ] Waiting-state check: `state-cli waiting --on "<reason>"` -> claim
+       "all done" with open items still open -> stop allowed (gate stands
+       down); `state-cli finish` while the wait is armed -> refused, even
+       with `--force-open`. `state-cli waiting --clear` -> next identical
+       claim -> stop gate re-arms and challenges again.
+8. [ ] /senior-dev:bypass testing the escape hatch -> next push allowed,
        bypass visible in /senior-dev:status.
-8. [ ] Codex absent/unauthed simulation (or real /codex:review) -> verdict
+9. [ ] Codex absent/unauthed simulation (or real /codex:review) -> verdict
        recorded via state-cli review; cycle 4 refused by CLI.
-9. [ ] /senior-dev:finish -> sweep evidence printed, state archived to
-       .senior-dev/history/, /senior-dev:status -> "no active session".
-10. [ ] Delete throwaway repo. Zero leftovers on the machine.
-11. [ ] Production-mileage note: bypass consumption, degrade fallback, and
+10. [ ] /senior-dev:finish -> sweep evidence printed, state archived to
+        .senior-dev/history/, /senior-dev:status -> "no active session".
+11. [ ] Delete throwaway repo. Zero leftovers on the machine.
+12. [ ] Production-mileage note: bypass consumption, degrade fallback, and
         quick-fix escalation have passed smoke but not a real production
         firing - treat their first real-world use with a skeptical eye and
         verify state afterwards.
-12. [ ] Waiting-state check: `state-cli waiting --on "<reason>"` -> claim
-        "all done" with open items still open -> stop allowed (gate stands
-        down). `state-cli waiting --clear` -> next identical claim -> stop
-        gate re-arms and challenges again. `state-cli finish` while a wait
-        is still armed -> refused, even with `--force-open`.

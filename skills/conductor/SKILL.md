@@ -125,16 +125,15 @@ Never silently skip the step.
 
 ## Model economy
 
-When dispatching subagents for implementation, fixes, or reviews, hand each
-task to the least powerful model that can carry it: mechanical,
-fully-specified work goes to a cheap fast model; integration and judgement
-work goes to a standard model; architecture and final review goes to the
-most capable model. Specify the model explicitly on every dispatch — an
-omitted model silently inherits the session's (usually most expensive)
-model. Always pair the dispatch with a fully scoped brief: complete
-requirements, exact interfaces and file paths, verification commands, and a
-report contract. A fresh subagent inherits nothing — the brief is the
-whole task.
+Model tiering for subagent dispatches (implementation, fixes, reviews)
+follows the Model Selection section of
+`superpowers:subagent-driven-development` — follow it; don't improvise your
+own buckets. The conductor adds two rules: specify the model explicitly on
+EVERY dispatch (an omitted model silently inherits the session's, usually
+most expensive, model), and give every dispatch a fully scoped brief —
+complete requirements, exact interfaces and file paths, verification
+commands, and a report contract. A fresh subagent inherits nothing; the
+brief is the whole task.
 
 ## 3. Review phase (every lane except docs-only/investigation)
 
