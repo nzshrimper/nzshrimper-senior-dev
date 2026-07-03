@@ -42,10 +42,17 @@ try {
   const state = readState(repoRoot);
   if (hasActiveSession(state)) {
     const open = openGateItems(state);
+    // state.waiting may be corrupt (hand-edited state.json, partial write) -
+    // guard every property access rather than trust the shape; fail open by
+    // just omitting the line if it doesn't look right.
+    const w = state && typeof state.waiting === 'object' && state.waiting !== null ? state.waiting : null;
+    const waitingLine = (w && typeof w.on === 'string' && typeof w.at === 'string')
+      ? `\nWAITING on: ${w.on} (since ${w.at}) — the previous session parked itself pending external work; check whether it completed before starting anything new.`
+      : '';
     ctx += `\n\n<IMPORTANT>RESUME: a senior-dev session is in flight in this repo.
 task: [${state.type}] ${state.task}
 current phase: ${currentPhase(state) || '(all phases done)'}
-open gate items: ${open.length ? open.join(', ') : 'none'}
+open gate items: ${open.length ? open.join(', ') : 'none'}${waitingLine}
 Run /senior-dev:status for detail, then invoke 'senior-dev:conductor' to resume where it left off. Do not restart completed phases.</IMPORTANT>`;
   }
 

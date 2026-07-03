@@ -22,3 +22,12 @@ Setup: `mkdir -p <scratch>/sd-smoke && cd <scratch>/sd-smoke && git init && git 
 9. [ ] /senior-dev:finish -> sweep evidence printed, state archived to
        .senior-dev/history/, /senior-dev:status -> "no active session".
 10. [ ] Delete throwaway repo. Zero leftovers on the machine.
+11. [ ] Production-mileage note: bypass consumption, degrade fallback, and
+        quick-fix escalation have passed smoke but not a real production
+        firing - treat their first real-world use with a skeptical eye and
+        verify state afterwards.
+12. [ ] Waiting-state check: `state-cli waiting --on "<reason>"` -> claim
+        "all done" with open items still open -> stop allowed (gate stands
+        down). `state-cli waiting --clear` -> next identical claim -> stop
+        gate re-arms and challenges again. `state-cli finish` while a wait
+        is still armed -> refused, even with `--force-open`.

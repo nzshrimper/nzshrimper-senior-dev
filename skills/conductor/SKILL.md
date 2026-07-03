@@ -55,6 +55,13 @@ entry is the audit trail).
   operator sign-off - with ONE exception: the §1 escalation path, where you
   announce the escalation and immediately re-init at the stricter lane in
   the same turn (the logged bypass entry is the audit trail).
+- **Waiting on external work**: when the session is genuinely parked on
+  background/external work (reviewers in flight, CI, a cloud job), arm
+  `state-cli waiting --on "<what>"` before ending the turn — the stop gate
+  stands down while it is set; clear it with `state-cli waiting --clear`
+  the moment you resume. It is logged in state and visible in status; it is
+  never a way to dodge a gate — commits/integration stay gated, and
+  `finish` refuses while a wait is active, even with `--force-open`.
 
 ## 2. The chains
 
@@ -68,7 +75,10 @@ path the moment the phase's deliverable exists.
    at `.senior-dev/state.json` in the MAIN checkout, not the worktree - the
    state CLI and both hard gates resolve the main checkout root
    automatically, so they keep working unchanged once you `cd` into the
-   worktree.
+   worktree. Note: worktree tools may branch from origin/main — commits
+   that exist only on local main (the fresh spec/plan) must be pushed or
+   cherry-picked into the worktree before implementing; check before you
+   build.
 3. `plan`: invoke `superpowers:writing-plans`. Artefact: committed plan.
 4. `implement`: invoke `superpowers:subagent-driven-development` (or
    `superpowers:executing-plans` inline) with
@@ -112,6 +122,19 @@ defaults.
 `state-cli degrade --wanted <skill> --used <fallback> --reason "not installed"`
 — tell the operator what to install, and use the nearest built-in equivalent.
 Never silently skip the step.
+
+## Model economy
+
+When dispatching subagents for implementation, fixes, or reviews, hand each
+task to the least powerful model that can carry it: mechanical,
+fully-specified work goes to a cheap fast model; integration and judgement
+work goes to a standard model; architecture and final review goes to the
+most capable model. Specify the model explicitly on every dispatch — an
+omitted model silently inherits the session's (usually most expensive)
+model. Always pair the dispatch with a fully scoped brief: complete
+requirements, exact interfaces and file paths, verification commands, and a
+report contract. A fresh subagent inherits nothing — the brief is the
+whole task.
 
 ## 3. Review phase (every lane except docs-only/investigation)
 
@@ -158,7 +181,10 @@ branch exists) and goes straight to the sweep.
 
 1. Final review passes - Claude `/code-review` + read-only Codex - over the
    complete branch diff, same procedure and recording as §3, recorded as
-   `--phase finish`.
+   `--phase finish`. Where the lane had a single implement phase already
+   reviewed in full (§3), scope the final pass to integration diffs and
+   unreviewed deltas rather than re-reviewing the same code — record it
+   the same way.
 2. `superpowers:finishing-a-development-branch` (merge/PR/discard menu).
 3. Hygiene sweep: `state-cli sweep` — then FIX anything it shows: stray
    worktrees, leftover branches, dirty status, surviving scratch files

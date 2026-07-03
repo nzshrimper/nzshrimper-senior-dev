@@ -46,6 +46,37 @@ test('in a repo with an active session: emits resume notice', () => {
   assert.ok(ctx.includes('state-cli.mjs'));
 });
 
+test('in a repo with an active session and a waiting state: RESUME block flags it', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'sd-ss-waiting-'));
+  execFileSync('git', ['init', '-q', repo]);
+  writeState(repo, {
+    version: 1, task: 'half-done widget', type: 'feature',
+    startedAt: 'x', chain: CHAINS['feature'], phases: { brainstorm: { status: 'done' } },
+    reviews: [], docsGate: { ...DOCS_GATE['feature'] }, degradations: [], bypasses: [],
+    stopGate: { lastSnapshotHash: null },
+    waiting: { on: 'codex review', at: '2026-01-01T00:00:00.000Z' },
+  });
+  const ctx = JSON.parse(run(repo)).hookSpecificOutput.additionalContext;
+  assert.ok(ctx.includes('WAITING on:'));
+  assert.ok(ctx.includes('codex review'));
+  assert.ok(ctx.includes('2026-01-01T00:00:00.000Z'));
+});
+
+test('active session with a corrupt waiting field: RESUME block still renders, no crash', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'sd-ss-waiting-corrupt-'));
+  execFileSync('git', ['init', '-q', repo]);
+  writeState(repo, {
+    version: 1, task: 'half-done widget', type: 'feature',
+    startedAt: 'x', chain: CHAINS['feature'], phases: { brainstorm: { status: 'done' } },
+    reviews: [], docsGate: { ...DOCS_GATE['feature'] }, degradations: [], bypasses: [],
+    stopGate: { lastSnapshotHash: null },
+    waiting: 'not-an-object',
+  });
+  const ctx = JSON.parse(run(repo)).hookSpecificOutput.additionalContext;
+  assert.ok(ctx.includes('RESUME'));
+  assert.ok(!ctx.includes('WAITING on:'));
+});
+
 test('malformed stdin: still works from process cwd', () => {
   const repo = mkdtempSync(join(tmpdir(), 'sd-ss-badstdin-'));
   execFileSync('git', ['init', '-q', repo]);
