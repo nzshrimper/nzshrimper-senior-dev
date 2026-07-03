@@ -58,6 +58,88 @@ test('phase + tests-green + review + docs update state', () => {
   assert.equal(s.docsGate.handover, true);
 });
 
+test('init seeds an empty waits history array', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);
+  assert.deepEqual(readState(repo).waits, []);
+});
+
+test('waiting --on requires a value and refuses a second arm while one is active', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);
+  assert.equal(cli(repo, ['waiting', '--on']).status, 1); // value-less --on
+  assert.equal(cli(repo, ['waiting']).status, 1); // neither --on nor --clear
+  assert.equal(readState(repo).waiting, undefined);
+  const armed = cli(repo, ['waiting', '--on', 'reviewer feedback']);
+  assert.equal(armed.status, 0);
+  assert.equal(readState(repo).waiting.on, 'reviewer feedback');
+  assert.ok(readState(repo).waiting.at);
+  const doubleArm = cli(repo, ['waiting', '--on', 'something else']);
+  assert.equal(doubleArm.status, 1);
+  assert.ok(doubleArm.out.includes('already waiting on: reviewer feedback'));
+  assert.equal(readState(repo).waiting.on, 'reviewer feedback'); // unchanged
+});
+
+test('waiting --clear clears the active wait, refuses when none is active, and rejects both flags together', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);
+  assert.equal(cli(repo, ['waiting', '--clear']).status, 1); // nothing active
+  cli(repo, ['waiting', '--on', 'ci run']);
+  const cleared = cli(repo, ['waiting', '--clear']);
+  assert.equal(cleared.status, 0);
+  const s = readState(repo);
+  assert.equal(s.waiting, undefined);
+  assert.equal(s.waits.length, 1);
+  assert.equal(s.waits[0].on, 'ci run');
+  assert.ok(s.waits[0].clearedAt);
+
+  assert.equal(cli(repo, ['waiting', '--on', 'x', '--clear']).status, 1);
+});
+
+test('status shows an active wait prominently and a past-waits count once waits accumulate', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);
+  const before = cli(repo, ['status']);
+  assert.ok(!before.out.includes('WAITING on'));
+  assert.ok(!before.out.toLowerCase().includes('past wait'));
+  cli(repo, ['waiting', '--on', 'codex review']);
+  const during = cli(repo, ['status']);
+  assert.ok(during.out.includes('WAITING on: codex review'));
+  cli(repo, ['waiting', '--clear']);
+  const after = cli(repo, ['status']);
+  assert.ok(!after.out.includes('WAITING on'));
+  assert.ok(after.out.toLowerCase().includes('past wait'));
+});
+
+test('finish refuses while a wait is active, even with --force-open', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);
+  cli(repo, ['waiting', '--on', 'external ci']);
+  const r = cli(repo, ['finish', '--force-open', 'ship it anyway']);
+  assert.equal(r.status, 1);
+  assert.ok(r.out.includes('external ci'));
+  assert.ok(existsSync(statePath(repo)));
+});
+
+test('finish succeeds after the wait is cleared, and the archive retains waits history with clearedAt', () => {
+  const repo = makeRepo();
+  cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);
+  cli(repo, ['waiting', '--on', 'external ci']);
+  cli(repo, ['waiting', '--clear']);
+  cli(repo, ['phase', 'implement', '--status', 'done']);
+  cli(repo, ['phase', 'review', '--status', 'done']);
+  cli(repo, ['phase', 'verify', '--status', 'done']);
+  cli(repo, ['docs', '--handover', 'true', '--affectedDocs', 'true']);
+  cli(repo, ['phase', 'docs', '--status', 'done']);
+  const r = cli(repo, ['finish']);
+  assert.equal(r.status, 0);
+  const hist = readdirSync(join(repo, '.senior-dev', 'history'));
+  const archived = JSON.parse(readFileSync(join(repo, '.senior-dev', 'history', hist[0]), 'utf8'));
+  assert.equal(archived.waits.length, 1);
+  assert.equal(archived.waits[0].on, 'external ci');
+  assert.ok(archived.waits[0].clearedAt);
+});
+
 test('bypass requires a reason and arms one-shot flag', () => {
   const repo = makeRepo();
   cli(repo, ['init', '--task', 'x', '--type', 'quick-fix']);

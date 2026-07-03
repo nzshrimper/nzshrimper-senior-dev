@@ -100,6 +100,24 @@ test('changed snapshot: blocks again', () => {
   assert.equal(gate(repo).blocked, true);
 });
 
+test('active wait: allow the stop even with open items and a completion claim', () => {
+  const repo = makeRepo();
+  writeState(repo, openState({ waiting: { on: 'codex review', at: '2026-01-01T00:00:00.000Z' } }));
+  assert.equal(gate(repo).blocked, false);
+});
+
+test('wait cleared: blocks again on a snapshot never previously challenged', () => {
+  const repo = makeRepo();
+  writeState(repo, openState({ waiting: { on: 'codex review', at: '2026-01-01T00:00:00.000Z' } }));
+  // While waiting, the gate exits before ever recording a snapshot hash -
+  // so this does NOT count as "already challenged" for the once-per-snapshot check below.
+  assert.equal(gate(repo).blocked, false);
+  const s = readState(repo);
+  delete s.waiting;
+  writeState(repo, s);
+  assert.equal(gate(repo).blocked, true);
+});
+
 test('corrupt stdin: fail open', () => {
   try {
     execFileSync('node', [SCRIPT], { encoding: 'utf8', input: 'garbage' });

@@ -92,6 +92,7 @@ switch (cmd) {
       degradations: [],
       bypasses: [],
       scratchFiles: [],
+      waits: [],
       stopGate: { lastSnapshotHash: null },
     };
     writeState(repoRoot, state);
@@ -192,6 +193,37 @@ switch (cmd) {
     console.log(`bypass armed (one-shot) - reason logged: ${reason}`);
     break;
   }
+  case 'waiting': {
+    const state = requireSession(repoRoot);
+    requireValues('waiting', flags, ['on']);
+    const hasOn = flags.on !== undefined;
+    const hasClear = flags.clear !== undefined;
+    if (hasOn && hasClear) fail('waiting needs exactly one of --on "<desc>" or --clear, not both');
+    if (!hasOn && !hasClear) fail('waiting needs exactly one of --on "<desc>" or --clear');
+    if (hasOn) {
+      if (!flags.on.trim()) fail('waiting --on needs a non-empty value');
+      if (state.waiting) fail(`already waiting on: ${state.waiting.on} - clear it first`);
+      const at = new Date().toISOString();
+      state.waits = state.waits || [];
+      state.waits.push({ on: flags.on, at });
+      state.waiting = { on: flags.on, at };
+      writeState(repoRoot, state);
+      console.log(`waiting on: ${flags.on}`);
+    } else {
+      if (flags.clear !== true) fail('waiting --clear does not take a value');
+      if (!state.waiting) fail('not currently waiting on anything');
+      const w = state.waiting;
+      // Find the matching open history entry (arming refuses a second wait
+      // while one is active, so there is at most one uncleared entry).
+      const entry = (state.waits || []).slice().reverse()
+        .find((e) => e.on === w.on && e.at === w.at && !e.clearedAt);
+      if (entry) entry.clearedAt = new Date().toISOString();
+      delete state.waiting;
+      writeState(repoRoot, state);
+      console.log(`wait cleared: ${w.on}`);
+    }
+    break;
+  }
   case 'scratch': {
     const state = requireSession(repoRoot);
     requireValues('scratch', flags, ['add']);
@@ -212,6 +244,7 @@ switch (cmd) {
     console.log(`task:   ${state.task}`);
     console.log(`type:   ${state.type}`);
     console.log(`phase:  ${currentPhase(state) || '(all done)'}\n`);
+    if (state.waiting) console.log(`WAITING on: ${state.waiting.on} (since ${state.waiting.at})\n`);
     console.log('phases:');
     for (const name of state.chain) {
       const ph = state.phases[name];
@@ -224,6 +257,7 @@ switch (cmd) {
     if (state.degradations.length) console.log(`degradations: ${state.degradations.map((d) => `${d.wanted} -> ${d.used}`).join('; ')}`);
     if (state.bypasses.length) console.log(`bypasses used: ${state.bypasses.map((b) => `${b.action}: ${b.reason}`).join('; ')}`);
     if (state.bypassArmed) console.log(`bypass ARMED: ${state.bypassArmed.reason}`);
+    if ((state.waits || []).length) console.log(`past waits: ${state.waits.length}`);
     const open = openGateItems(state);
     console.log(open.length ? `open gate items (${open.length}):\n  - ${open.join('\n  - ')}` : 'all gates clear.');
     break;
@@ -249,6 +283,10 @@ switch (cmd) {
   case 'finish': {
     const state = requireSession(repoRoot);
     requireValues('finish', flags, ['force-open']);
+    // An active wait at finish is always a bookkeeping error - either clear
+    // it (the external work finished) or it was abandoned. --force-open is
+    // for open GATE items with an operator sign-off; it does not apply here.
+    if (state.waiting) fail(`finish refused - still waiting on: ${state.waiting.on} - clear it first or the wait was abandoned`);
     // Running `finish` completes the chain's final phase, so mark it done
     // BEFORE computing open gate items - otherwise phase:finish would always
     // read as open and every close would demand --force-open.
@@ -284,5 +322,5 @@ switch (cmd) {
     break;
   }
   default:
-    fail(`unknown subcommand '${cmd || ''}'. Use: init|phase|tests-green|review|docs|degrade|bypass|scratch|status|sweep|finish`);
+    fail(`unknown subcommand '${cmd || ''}'. Use: init|phase|tests-green|review|docs|degrade|bypass|waiting|scratch|status|sweep|finish`);
 }

@@ -45,6 +45,12 @@ try {
   const state = readState(repoRoot);
   if (!hasActiveSession(state)) process.exit(0);
 
+  // A recognised wait (external review, CI, etc.) is a legitimate reason to
+  // stop - the session is parked, not abandoned. Exit before touching the
+  // once-per-snapshot hash so the next genuine stop (post-clear) still gets
+  // a fresh challenge instead of reading as "already seen".
+  if (state.waiting) process.exit(0);
+
   const items = openGateItems(state);
   if (!items.length) process.exit(0);
 
