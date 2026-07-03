@@ -34,14 +34,14 @@ hatch.
 ## Install
 
 ```bash
-claude plugin marketplace add ~/code/senior-dev
-claude plugin install senior-dev@senior-dev-local
+claude plugin marketplace add ~/code/nzshrimper-senior-dev
+claude plugin install senior-dev@nzshrimper-senior-dev
 # restart Claude Code to load hooks
 ```
 
 Update flow: edit source, bump both versions in `.claude-plugin/`, then
-`claude plugin marketplace update senior-dev-local` and
-`claude plugin update senior-dev@senior-dev-local`, restart.
+`claude plugin marketplace update nzshrimper-senior-dev` and
+`claude plugin update senior-dev@nzshrimper-senior-dev`, restart.
 
 ## Commands
 

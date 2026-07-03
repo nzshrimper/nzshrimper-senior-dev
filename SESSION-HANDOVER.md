@@ -3,7 +3,7 @@
 **Updated:** 2026-07-03
 **State:** v0.1.0 built, merged to main (`be03cf9`), tagged. 81/81 tests green
 (`node --test tests/*.test.mjs`). Installed via local marketplace
-`senior-dev-local`. **Live smoke PASSED 10/10 (2026-07-03)** — all `tests/SMOKE.md`
+`nzshrimper-senior-dev`. **Live smoke PASSED 10/10 (2026-07-03)** — all `tests/SMOKE.md`
 items verified in a throwaway repo via nested `claude -p --resume` sessions,
 including item 7's bypass `$ARGUMENTS` heredoc (reason recorded verbatim,
 one-shot consumed, visible in status). No open items.
@@ -38,5 +38,5 @@ review-fix commits document them); none block use.
 
 Edit source → bump version in BOTH `.claude-plugin/plugin.json` and
 `.claude-plugin/marketplace.json` → `claude plugin marketplace update
-senior-dev-local` → `claude plugin update senior-dev@senior-dev-local` →
+nzshrimper-senior-dev` → `claude plugin update senior-dev@nzshrimper-senior-dev` →
 restart Claude Code.
