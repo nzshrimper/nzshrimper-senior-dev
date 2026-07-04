@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import {
   CHAINS, DOCS_GATE, findRepoRoot, readState, writeState, statePath,
   hasActiveSession, currentPhase, latestVerdicts, openGateItems, ensureExcluded,
+  VALID_SOURCES, readSkillsConfig, writeSkillsConfig,
 } from './lib/state.mjs';
 
 function fail(msg) {
@@ -49,6 +50,19 @@ function requireValues(cmdName, flags, keys) {
       fail(`${cmdName} needs a value for --${key}`);
     }
   }
+}
+
+function parseSteps(raw) {
+  // "plan=my-org:planner,review=my-org:reviewer" -> {plan:'my-org:planner',...}
+  const steps = {};
+  for (const pair of raw.split(',')) {
+    const t = pair.trim();
+    if (!t) continue;
+    const eq = t.indexOf('=');           // split on FIRST '=', skill ids contain ':'
+    if (eq < 1) fail(`bad --steps entry '${t}', expected phase=skill`);
+    steps[t.slice(0, eq).trim()] = t.slice(eq + 1).trim();
+  }
+  return steps;
 }
 
 function requireSession(repoRoot) {
@@ -245,6 +259,15 @@ switch (cmd) {
     console.log(`type:   ${state.type}`);
     console.log(`phase:  ${currentPhase(state) || '(all done)'}\n`);
     if (state.waiting) console.log(`WAITING on: ${state.waiting.on} (since ${state.waiting.at})\n`);
+    if (state.skillSource) {
+      console.log(`skill source: ${state.skillSource.source}`);
+      if (state.skillSource.map && Object.keys(state.skillSource.map).length) {
+        console.log(`  resolved: ${JSON.stringify(state.skillSource.map)}`);
+      }
+      if ((state.skillSource.suggestions || []).length) {
+        console.log(`  suggestions: ${state.skillSource.suggestions.length}`);
+      }
+    }
     console.log('phases:');
     for (const name of state.chain) {
       const ph = state.phases[name];
@@ -321,6 +344,62 @@ switch (cmd) {
     console.log(`session closed and archived: ${dest}`);
     break;
   }
+  case 'skills-config': {
+    const sub = positional[0];
+    if (sub === 'show') {
+      const cfg = readSkillsConfig(repoRoot);
+      console.log(cfg ? JSON.stringify(cfg, null, 2) : 'none');
+      break;
+    }
+    if (sub === 'set') {
+      requireValues('skills-config set', flags, ['source', 'steps']);
+      if (!VALID_SOURCES.includes(flags.source)) {
+        fail(`skills-config set needs --source ${VALID_SOURCES.join('|')}`);
+      }
+      const existing = readSkillsConfig(repoRoot) || {};
+      const cfg = {
+        version: 1,
+        source: flags.source,
+        shared: existing.shared === true,
+      };
+      if (typeof flags.steps === 'string') cfg.steps = parseSteps(flags.steps);
+      else if (existing.steps) cfg.steps = existing.steps;
+      writeSkillsConfig(repoRoot, cfg);
+      ensureExcluded(repoRoot);
+      console.log(`skills config: source=${cfg.source}${cfg.steps ? ' steps=' + JSON.stringify(cfg.steps) : ''}`);
+      break;
+    }
+    if (sub === 'share' || sub === 'unshare') {
+      const cfg = readSkillsConfig(repoRoot);
+      if (!cfg) fail('no skills config yet - run: skills-config set --source <s>');
+      cfg.shared = sub === 'share';
+      writeSkillsConfig(repoRoot, cfg);
+      ensureExcluded(repoRoot);
+      if (cfg.shared) console.log('skills config is now shareable. Commit it:\n  git add .senior-dev/skills.json');
+      else console.log('skills config is now private (git-excluded).');
+      break;
+    }
+    fail('skills-config needs a subcommand: show | set | share | unshare');
+    break;
+  }
+  case 'skill-source': {
+    const state = requireSession(repoRoot);
+    requireValues('skill-source', flags, ['source', 'map', 'suggestions']);
+    if (!VALID_SOURCES.includes(flags.source)) {
+      fail(`skill-source needs --source ${VALID_SOURCES.join('|')}`);
+    }
+    let map = {}, suggestions = [];
+    if (typeof flags.map === 'string') {
+      try { map = JSON.parse(flags.map); } catch { fail('skill-source --map must be valid JSON'); }
+    }
+    if (typeof flags.suggestions === 'string') {
+      try { suggestions = JSON.parse(flags.suggestions); } catch { fail('skill-source --suggestions must be valid JSON'); }
+    }
+    state.skillSource = { source: flags.source, map, suggestions, at: new Date().toISOString() };
+    writeState(repoRoot, state);
+    console.log(`skill source recorded: ${flags.source}`);
+    break;
+  }
   default:
-    fail(`unknown subcommand '${cmd || ''}'. Use: init|phase|tests-green|review|docs|degrade|bypass|waiting|scratch|status|sweep|finish`);
+    fail(`unknown subcommand '${cmd || ''}'. Use: init|phase|tests-green|review|docs|degrade|bypass|waiting|scratch|skills-config|skill-source|status|sweep|finish`);
 }
