@@ -166,12 +166,12 @@ test('snapshotHash is order-insensitive and content-sensitive', () => {
   assert.notEqual(snapshotHash(['a']), snapshotHash(['a', 'b']));
 });
 
-test('ensureExcluded adds .senior-dev/ once', () => {
+test('ensureExcluded adds .senior-dev/state.json once', () => {
   const repo = makeRepo();
   ensureExcluded(repo);
   ensureExcluded(repo);
   const content = readFileSync(join(repo, '.git', 'info', 'exclude'), 'utf8');
-  assert.equal(content.split('\n').filter((l) => l === '.senior-dev/').length, 1);
+  assert.equal(content.split('\n').filter((l) => l === '.senior-dev/state.json').length, 1);
 });
 
 test('consumeBypass is one-shot and logged', () => {

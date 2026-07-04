@@ -61,6 +61,31 @@ export function statePath(repoRoot) {
   return join(repoRoot, '.senior-dev', 'state.json');
 }
 
+export const VALID_SOURCES = ['own', 'superpowers', 'combo', 'suggest'];
+
+export function skillsConfigPath(repoRoot) {
+  return join(repoRoot, '.senior-dev', 'skills.json');
+}
+
+export function readSkillsConfig(repoRoot) {
+  try {
+    const c = JSON.parse(readFileSync(skillsConfigPath(repoRoot), 'utf8'));
+    if (typeof c !== 'object' || c === null || c.version !== 1) return null;
+    if (c.source !== undefined && !VALID_SOURCES.includes(c.source)) return null;
+    return c;
+  } catch {
+    return null;
+  }
+}
+
+export function writeSkillsConfig(repoRoot, cfg) {
+  const p = skillsConfigPath(repoRoot);
+  mkdirSync(dirname(p), { recursive: true });
+  const tmp = p + '.tmp';
+  writeFileSync(tmp, JSON.stringify(cfg, null, 2) + '\n');
+  renameSync(tmp, p);
+}
+
 export function readState(repoRoot) {
   try {
     const s = JSON.parse(readFileSync(statePath(repoRoot), 'utf8'));
@@ -137,13 +162,26 @@ export function snapshotHash(items) {
 export function ensureExcluded(repoRoot) {
   try {
     const p = join(repoRoot, '.git', 'info', 'exclude');
-    const line = '.senior-dev/';
     let cur = '';
     try { cur = readFileSync(p, 'utf8'); } catch {}
-    if (!cur.split('\n').includes(line)) {
-      mkdirSync(dirname(p), { recursive: true });
-      appendFileSync(p, (cur === '' || cur.endsWith('\n') ? '' : '\n') + line + '\n');
-    }
+    const shared = readSkillsConfig(repoRoot)?.shared === true;
+
+    // Lines we manage. skills.json is excluded only when NOT shared.
+    const want = ['.senior-dev/state.json', '.senior-dev/history/'];
+    if (!shared) want.push('.senior-dev/skills.json');
+
+    // Start from existing lines, drop the legacy wholesale line and any of
+    // our managed lines, then re-add exactly the set we want. Idempotent, and
+    // flips skills.json in/out as `shared` changes.
+    const managed = new Set([
+      '.senior-dev/', '.senior-dev/state.json',
+      '.senior-dev/history/', '.senior-dev/skills.json',
+    ]);
+    const kept = cur.split('\n').filter((l) => l !== '' && !managed.has(l));
+    const out = [...kept, ...want];
+
+    mkdirSync(dirname(p), { recursive: true });
+    writeFileSync(p, out.join('\n') + '\n');
   } catch {}
 }
 
