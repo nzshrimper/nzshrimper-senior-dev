@@ -19,8 +19,12 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/state-cli.mjs" <subcommand> [flags]
 
 ## 1. Engage
 
-1. **Skill source (first, before classifying).** Decide which skills fill the
-   process phases this run. Run `node <plugin>/scripts/state-cli.mjs
+1. Run `node <plugin>/scripts/state-cli.mjs status` (the session bootstrap
+   gives the exact path). If it reports an active session, resume at the
+   reported phase — its skill source is already recorded, so skip the rest of
+   §1; do not restart completed phases.
+2. **Skill source (fresh run only, before classifying).** Decide which skills
+   fill the process phases this run. Run `node <plugin>/scripts/state-cli.mjs
    skills-config show`.
    - **Config present:** state its `source` as the project default and ask a
      one-beat confirm — "Project default: **<source>** (with this repo's
@@ -39,11 +43,8 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/state-cli.mjs" <subcommand> [flags]
      and tell them to `git add .senior-dev/skills.json`.
    - Record the run's choice once the session exists (after `init`):
      `state-cli skill-source --source <s> --map '<phase→skill json>'`.
-2. Run `node <plugin>/scripts/state-cli.mjs status` (the session bootstrap
-   gives the exact path). If it reports an active session, resume at the
-   reported phase; do not restart completed phases.
-3. Otherwise classify the task as exactly one of the types below. If
-   genuinely ambiguous, ask the operator ONE multiple-choice question.
+3. Classify the task as exactly one of the types below. If genuinely
+   ambiguous, ask the operator ONE multiple-choice question.
 4. Initialise: `state-cli init --task "<one-line task>" --type <type>`
 
 | Type | When |
