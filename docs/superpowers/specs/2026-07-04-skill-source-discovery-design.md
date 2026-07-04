@@ -119,10 +119,27 @@ at Engage-time resolution or mid-run — is a gap, handled by the split:
   installed): the conductor reads a new curated reference,
   `skills/conductor/references/skill-sources.md`, mapping each canonical chain
   skill to its exact install command (e.g.
-  `claude plugin marketplace add obra/superpowers`) and the built-ins that need
-  nothing. It gives the operator the exact command — `find-skills`/`npx skills`
-  cannot reliably locate plugin-based skills, so a curated pointer is correct
-  here.
+  `claude plugin marketplace add obra/superpowers` then
+  `claude plugin install superpowers@superpowers-marketplace`) and the
+  built-ins that need nothing. `find-skills`/`npx skills` cannot reliably locate
+  plugin-based skills, so a curated pointer is correct here.
+
+  **Assisted install (not just a printed command).** When the operator chose a
+  source that needs the missing plugin — most often picking **superpowers** and
+  not having it — the conductor:
+  1. Names the exact commands from `skill-sources.md`.
+  2. **Offers to run them** (operator yes required — this is an outward, install
+     action, never automatic).
+  3. States the restart caveat plainly: a newly installed plugin's skills and
+     hooks load on the **next Claude Code restart**, so they are not usable in
+     the current session even after a successful install.
+  4. Offers the operator the honest choice: **(a)** proceed this run on the
+     nearest built-in fallback (degrade recorded, superpowers picked up next
+     session), or **(b)** install now, restart, and resume — the session is
+     resumable from state, so no work is lost.
+
+  The conductor never blocks on the install; it makes the path easy and the
+  trade-offs explicit, then follows the operator's call.
 - **Domain/capability gap** (the task needs a capability no installed skill
   covers): the conductor invokes `find-skills` and presents ranked candidates.
 
@@ -204,7 +221,9 @@ Constraints:
 3. Choosing "suggest" runs find-skills and returns candidates; nothing installs
    without an explicit yes.
 4. A missing chain-plugin skill yields the exact install command from the
-   curated map; a missing domain skill yields find-skills candidates.
+   curated map AND an offer to run it, with the restart caveat stated and a
+   proceed-on-fallback vs install-restart-resume choice; a missing domain skill
+   yields find-skills candidates. Nothing installs without an explicit yes.
 5. The chosen source, resolved map, and suggestions appear in
    `/senior-dev:status` and the finish summary.
 6. The process spine (phase sequence and all hard gates) is unchanged; only
