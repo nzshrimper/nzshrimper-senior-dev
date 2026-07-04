@@ -1,5 +1,5 @@
 ---
-description: Show the senior-dev session state - phases, gates, reviews, degradations, bypasses
+description: Show the senior-dev session state - phases, gates, reviews, degradations, bypasses · Foundry Studio
 allowed-tools: Bash(node:*)
 ---
 

@@ -1,5 +1,5 @@
 ---
-description: Close the senior-dev session - final Codex pass, docs gate, hygiene sweep, archive
+description: Close the senior-dev session - final Codex pass, docs gate, hygiene sweep, archive · Foundry Studio
 ---
 
 Invoke the `senior-dev:conductor` skill and execute its Finish protocol (§5)

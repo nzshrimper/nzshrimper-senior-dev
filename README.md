@@ -85,3 +85,9 @@ gracefully and are reported, never silently skipped.
 ```bash
 node --test tests/*.test.mjs
 ```
+
+## Built by Foundry Studio
+
+Foundry Studio is a modern build studio in Christchurch, New Zealand. Modern stack, plain language, direct contact. This plugin is free and open, and it is a real piece of work to point at.
+
+Made with attention. Christchurch, NZ. foundrystudio.app

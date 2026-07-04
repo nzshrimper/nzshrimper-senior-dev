@@ -1,5 +1,5 @@
 ---
-description: Waive the next senior-dev gate action (one-shot, reason required, logged)
+description: Waive the next senior-dev gate action (one-shot, reason required, logged) · Foundry Studio
 argument-hint: '<reason>'
 allowed-tools: Bash(node:*)
 ---

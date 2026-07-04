@@ -1,5 +1,5 @@
 ---
-description: Start (or resume) an orchestrated senior-dev session for a task
+description: Start (or resume) an orchestrated senior-dev session for a task · Foundry Studio
 argument-hint: '[task description]'
 ---
 
