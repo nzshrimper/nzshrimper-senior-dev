@@ -27,7 +27,7 @@ Only *which skill fills each phase* is now selectable.
 | The four sources | 1 own skills · 2 superpowers (default) · 3 combo · 4 suggest (find-skills) |
 | Gap handling | Split: curated pointer for chain-plugin gaps, `find-skills` for domain gaps — mixed per the project's own skills taking precedence |
 | Project preference | `.senior-dev/skills.json` maps steps→skills and records the source; when present the conductor presents it as the project default and asks the operator to **confirm** (one beat), not silently proceed and not fully re-ask |
-| Preference sharing | The file is committable or git-ignorable at the project's discretion (committing it is how a team shares "use our skills") |
+| Preference sharing | **Private by default** — skills.json sits inside the already-excluded `.senior-dev/`, so git never sees it unless the operator opts in. On first creation the conductor asks one quick share/private question (default private); only "share" acts, narrowing the git exclusion so the file becomes committable for the team |
 | Nothing auto-installs | Every install needs an explicit operator yes; the chain is never silently rewired |
 | Out of scope (v1.2) | No deterministic session-start script that mechanically lists installed skills — prose resolution + the override file cover the need |
 
@@ -74,10 +74,23 @@ written to session state at this point (§7).
 
 ## 5. `.senior-dev/skills.json`
 
-Lives beside the state file at the repo root. Committable or git-ignorable at
-the project's discretion — the conductor never adds it to `.git/info/exclude`
-(unlike `state.json`, which it does exclude), so committing is the default and
-sharing is opt-out.
+Lives beside the state file at the repo root, inside `.senior-dev/`.
+
+**Private by default.** `.senior-dev/` is already excluded wholesale (v0.1.1
+behaviour), so a freshly created `skills.json` is invisible to git with zero
+new work — the default the operator wanted. When the conductor first creates
+the file, it asks one quick question: keep this skill config **private**
+(default) or **share** it with the team by committing it? A 20-second choice
+that closes the "did I just leak my project's skill map" door up front.
+
+- **Private** (default): nothing to do — the file stays inside the excluded
+  directory.
+- **Share** (opt-in): the conductor narrows the git exclusion from the whole
+  `.senior-dev/` directory to the churn-only paths (`.senior-dev/state.json`,
+  `.senior-dev/history/`), leaving `skills.json` trackable, and tells the
+  operator to `git add .senior-dev/skills.json`. (Git can't re-include a file
+  under an ignored parent via a negation, so the exclusion must be narrowed,
+  not negated.)
 
 ```json
 {
@@ -137,7 +150,7 @@ bypass / degrade / waiting already report.
 | `skills/conductor/SKILL.md` | New "Skill source" opening sub-step in §1 Engage; the four sources; the confirm-the-default behaviour; §6 gap split; wire `find-skills` by name; update the "Missing skills" paragraph to point at `references/skill-sources.md` |
 | `skills/conductor/references/skill-sources.md` | New — curated map: canonical chain skill → install command / built-in note |
 | `scripts/state-cli.mjs` | New subcommand(s) to read/write `.senior-dev/skills.json`, record the source + resolved map + suggestions; status/finish surfacing |
-| `scripts/lib/state.mjs` | Skill-source read/validate helpers; `.senior-dev/skills.json` path + parse (corrupt→null, like state.json) |
+| `scripts/lib/state.mjs` | Skill-source read/validate helpers; `.senior-dev/skills.json` path + parse (corrupt→null, like state.json); `ensureExcluded` gains a narrowed-exclusion mode (churn-only paths) used when the operator chooses "share" |
 | `commands/start.md` | Mention the opening skill-source choice |
 | `tests/*` | CLI read/write of skills.json (valid/corrupt/absent), source resolution, status surfacing |
 | `README.md` / `CHANGELOG.md` / `SESSION-HANDOVER.md` | Document the feature; bump to 0.1.2 |
@@ -159,6 +172,8 @@ bypass / degrade / waiting already report.
    skill-source question; superpowers is the marked default.
 2. A repo with `.senior-dev/skills.json` presents the declared source as the
    project default to confirm in one beat, and honours per-step overrides.
+   The file is private by default; sharing is a one-question opt-in that
+   narrows the git exclusion so the file becomes committable.
 3. Choosing "suggest" runs find-skills and returns candidates; nothing installs
    without an explicit yes.
 4. A missing chain-plugin skill yields the exact install command from the
