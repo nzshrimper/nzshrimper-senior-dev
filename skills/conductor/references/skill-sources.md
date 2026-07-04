@@ -4,7 +4,8 @@ Read this on a **chain-plugin gap** — a named `superpowers:*` / `codex:*`
 process skill the run needs is not installed. `find-skills` / `npx skills`
 target the skills.sh ecosystem and cannot reliably locate Claude Code
 *plugins*, so these installs are curated here. Give the operator the exact
-commands; offer to run them (§6 assisted install); never install without a yes.
+commands; offer to run them (assisted install — operator yes required; see the
+conductor's "Skill source resolution"); never install without a yes.
 
 | Skill family | Install commands | Notes |
 |---|---|---|
