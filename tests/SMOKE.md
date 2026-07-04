@@ -27,7 +27,18 @@ Setup: `mkdir -p <scratch>/sd-smoke && cd <scratch>/sd-smoke && git init && git 
 10. [ ] /senior-dev:finish -> sweep evidence printed, state archived to
         .senior-dev/history/, /senior-dev:status -> "no active session".
 11. [ ] Delete throwaway repo. Zero leftovers on the machine.
-12. [ ] Production-mileage note: bypass consumption, degrade fallback, and
+12. [ ] Skill-source (fresh repo): first `/senior-dev:start` asks the four-way
+        source question, superpowers marked default. Answer `own`/`combo` ->
+        `.senior-dev/skills.json` written; `state-cli skills-config show`
+        reflects it; a second run confirms the saved default in one beat
+        instead of re-asking.
+13. [ ] Share opt-in: `state-cli skills-config share` -> skills.json no longer
+        in `.git/info/exclude`; `unshare` re-hides it.
+14. [ ] Chosen-but-missing chain plugin (simulate: pick superpowers where a
+        step skill is absent) -> conductor prints the exact install command,
+        offers to run it, states the restart caveat, and offers
+        proceed-on-fallback vs install-restart-resume.
+15. [ ] Production-mileage note: bypass consumption, degrade fallback, and
         quick-fix escalation have passed smoke but not a real production
         firing - treat their first real-world use with a skeptical eye and
         verify state afterwards.

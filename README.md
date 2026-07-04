@@ -31,6 +31,21 @@ All hooks fail open: a broken hook never blocks normal work. Gates arm only
 while a session is active. `/senior-dev:bypass <reason>` is the logged escape
 hatch.
 
+## Choosing a skill source
+
+Every run opens by asking which skills fill the process phases:
+
+- **own** — your project's own skills
+- **superpowers** (default) — the canonical chain
+- **combo** — superpowers plus your project's skills where they exist
+- **suggest** — search skills.sh via `find-skills` and pick
+
+Your choice is saved per-repo in `.senior-dev/skills.json` (private by default;
+run `state-cli skills-config share` to commit it for your team). A missing
+process skill is never a dead end: the conductor gives you the exact install
+command (and offers to run it) for a chain plugin, or `find-skills` candidates
+for a domain skill — nothing installs without your yes.
+
 ## Install
 
 ```bash

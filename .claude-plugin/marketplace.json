@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Local marketplace for the senior-dev session orchestrator plugin",
-    "version": "0.1.1"
+    "version": "0.1.2"
   },
   "plugins": [
     {
       "name": "senior-dev",
       "source": "./",
       "description": "Senior-dev session orchestrator: skill routing, hard gates, Codex phase reviews, docs gate, hygiene sweep.",
-      "version": "0.1.1"
+      "version": "0.1.2"
     }
   ]
 }
