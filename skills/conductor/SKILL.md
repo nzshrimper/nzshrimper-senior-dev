@@ -19,12 +19,32 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/state-cli.mjs" <subcommand> [flags]
 
 ## 1. Engage
 
-1. Run `node <plugin>/scripts/state-cli.mjs status` (the session bootstrap
+1. **Skill source (first, before classifying).** Decide which skills fill the
+   process phases this run. Run `node <plugin>/scripts/state-cli.mjs
+   skills-config show`.
+   - **Config present:** state its `source` as the project default and ask a
+     one-beat confirm — "Project default: **<source>** (with this repo's
+     `<mapped phases>`). Use it, or choose another?" A bare "yes"/"use it"
+     proceeds; naming another source switches.
+   - **No config:** ask the four-way question, `superpowers` marked default:
+     1. **own** — this project's own skills fill each phase.
+     2. **superpowers** (default) — the canonical chain.
+     3. **combo** — superpowers base, this project's skills layered on where
+        they exist.
+     4. **suggest** — search for skills with `find-skills` and pick.
+   - Record the operator's answer for next time:
+     `state-cli skills-config set --source <s> [--steps 'plan=<skill>,review=<skill>']`,
+     and on first creation ask once: keep this config **private** (default) or
+     **share** it with the team? On "share" run `state-cli skills-config share`
+     and tell them to `git add .senior-dev/skills.json`.
+   - Record the run's choice once the session exists (after `init`):
+     `state-cli skill-source --source <s> --map '<phase→skill json>'`.
+2. Run `node <plugin>/scripts/state-cli.mjs status` (the session bootstrap
    gives the exact path). If it reports an active session, resume at the
    reported phase; do not restart completed phases.
-2. Otherwise classify the task as exactly one of the types below. If
+3. Otherwise classify the task as exactly one of the types below. If
    genuinely ambiguous, ask the operator ONE multiple-choice question.
-3. Initialise: `state-cli init --task "<one-line task>" --type <type>`
+4. Initialise: `state-cli init --task "<one-line task>" --type <type>`
 
 | Type | When |
 |---|---|
@@ -41,6 +61,41 @@ mini-session with `state-cli finish --force-open "escalating quick-fix to
 <type>"` and immediately re-init at the stricter lane in the same turn (its
 gates are still open mid-escalation - that's expected; the logged bypass
 entry is the audit trail).
+
+## Skill source resolution
+
+The phase spine never changes; the source decides which skill fills each phase.
+
+- **own** — each phase resolves to a project skill: `skills.json` `steps`
+  mapping first, then a project skill you can see (project `CLAUDE.md` /
+  installed project skills). A phase with neither is a gap (below).
+- **superpowers** — each phase resolves to its canonical `superpowers:*` /
+  built-in skill (the chains in §2). This is the default.
+- **combo** — superpowers base; a project `steps` mapping or visible project
+  skill overrides that phase; phases the project doesn't cover stay on
+  superpowers.
+- **suggest** — invoke `find-skills` to search skills.sh, present ranked
+  candidates, let the operator pick; fold chosen skills into the chain. Install
+  only on an explicit yes.
+
+**Gaps** — a phase that resolves to no available skill, whether caught here or
+mid-run:
+
+- **Chain-plugin gap** (a `superpowers:*` / `codex:*` skill isn't installed):
+  read `references/skill-sources.md`, give the operator the exact install
+  commands, and — especially when they *chose* superpowers — **offer to run
+  them** (their yes required). State the restart caveat plainly: a fresh
+  install's skills/hooks load on the next Claude Code restart, not this session.
+  Then offer the choice: (a) proceed now on the built-in fallback (record
+  `state-cli degrade …`), or (b) install, restart, resume (state is resumable).
+  Never block; never install without the yes.
+- **Domain/capability gap** (the task wants a capability no installed skill
+  covers): invoke `find-skills`, present ranked candidates, install only on a
+  yes.
+
+Either way the gap is recorded via `state-cli degrade`, the nearest built-in
+carries the phase if the operator declines to install, and the step is never
+silently skipped.
 
 ## Gates and bypass
 
@@ -118,10 +173,10 @@ honest close.
 CLAUDE.md). Project CLAUDE.md and operator instructions ALWAYS outrank these
 defaults.
 
-**Missing skills:** if a chain skill is not installed, record it —
-`state-cli degrade --wanted <skill> --used <fallback> --reason "not installed"`
-— tell the operator what to install, and use the nearest built-in equivalent.
-Never silently skip the step.
+**Missing skills:** handled by "Skill source resolution" above — chain-plugin
+gaps use `references/skill-sources.md` (with assisted install), domain gaps use
+`find-skills`. Always record the gap (`state-cli degrade …`) and fall to the
+nearest built-in; never silently skip a step.
 
 ## Model economy
 
