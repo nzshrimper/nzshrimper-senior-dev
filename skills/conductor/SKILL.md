@@ -42,7 +42,8 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/state-cli.mjs" <subcommand> [flags]
      **share** it with the team? On "share" run `state-cli skills-config share`
      and tell them to `git add .senior-dev/skills.json`.
    - Record the run's choice once the session exists (after `init`):
-     `state-cli skill-source --source <s> --map '<phase→skill json>'`.
+     `state-cli skill-source --source <s> --map '<phase→skill json>' [--suggestions '<json array of candidates the operator took>']`
+     (add `--suggestions` when the source is `suggest`).
 3. Classify the task as exactly one of the types below. If genuinely
    ambiguous, ask the operator ONE multiple-choice question.
 4. Initialise: `state-cli init --task "<one-line task>" --type <type>`
@@ -176,7 +177,8 @@ defaults.
 
 **Missing skills:** handled by "Skill source resolution" above — chain-plugin
 gaps use `references/skill-sources.md` (with assisted install), domain gaps use
-`find-skills`. Always record the gap (`state-cli degrade …`) and fall to the
+`find-skills`. Always record the gap
+(`state-cli degrade --wanted <skill> --used <fallback> --reason "<why>"`) and fall to the
 nearest built-in; never silently skip a step.
 
 ## Model economy
