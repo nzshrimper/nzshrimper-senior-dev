@@ -156,6 +156,33 @@ bypass / degrade / waiting already report.
 | `README.md` / `CHANGELOG.md` / `SESSION-HANDOVER.md` | Document the feature; bump to 0.1.2 |
 | `tests/SMOKE.md` | Add a skill-source-selection smoke item |
 
+## 8a. Foundry Studio branding (parallel packaging concern, both plugins)
+
+The plugin is a free giveaway; the visibility is the asset (money made *around*
+the plugins via Foundry Studio leverage). Brand the **high-reach** surfaces —
+the ones that reach people who don't yet use it — and leave the command itself
+short. Decision (operator-confirmed 2026-07-04): keep `/senior-dev:` as-is; do
+NOT rename the plugin.
+
+| Surface | Change | Reach |
+|---|---|---|
+| `plugin.json` `author` | name → "Foundry Studio", with Chris as maintainer contact | install screen |
+| marketplace + plugin `description` | Foundry-led subtitle | directory / Discover card — new reach |
+| `README.md` | a "Built by Foundry Studio" credit block + link | GitHub click-through — new reach |
+| command `description:` frontmatter | a light Foundry tag | everyday `/` menu |
+
+Constraints:
+- **All Foundry-voiced copy is written with `foundry-studio:foundry-brand`
+  loaded first** — never freelance the Foundry identity (standing rule; drift =
+  hard stop). The spec fixes *which surfaces*; the plan/build fixes the *words*.
+- No wording may imply Anthropic endorsement or partnership (directory terms).
+  "Built by Foundry Studio" is fine; "official Claude …" is not.
+- The paren in the `/` menu stays `(senior-dev)` — it is the plugin name, and
+  there is no separate display-name field; it is low-reach ad space, so it is
+  deliberately not chased.
+- **Mirror to `nzshrimper-promptbuilder`** the same way (its own small update),
+  so both plugins carry consistent Foundry credit.
+
 ## 9. Failure modes
 
 | Failure | Behaviour |
