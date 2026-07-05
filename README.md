@@ -33,36 +33,27 @@ The four sources — your own skills, superpowers, a combination, or a
 `find-skills` search — resolve which skill fills each fixed phase. Your choice
 is saved per-repo in `.senior-dev/skills.json`, private by default.
 
-*(The two scenes below are illustrative until captures land in `docs/media/` —
-`run-gate-block.png` and `run-finish-sweep.png`.)*
-
 **2. The gate blocks an unreviewed push, and says exactly why.**
 
-```
-> git push origin main
+Worktree commits need recorded green tests during implement/debug;
+merge/push/PR needs approved reviews, verification, and a complete docs gate.
+A blocked action names the exact missing items:
 
+```
 senior-dev gate: integration blocked (3 items):
 - review for 'implement' is NEEDS_REVISION, not APPROVED
 - verification phase not done
 - docs gate item 'handover' incomplete
 See /senior-dev:status for detail, or /senior-dev:bypass <reason> to waive (logged).
 ```
-<!-- ![The commit gate blocking a push](docs/media/run-gate-block.png) -->
+*(Illustrative — a live gate-block capture lands here at `docs/media/run-gate-block.png`.)*
 
 **3. Finish proves the repo is clean, with evidence, not assertions.**
 
-```
-> /senior-dev:finish
+The hygiene sweep catches real leftovers — here it finds a stray scratch file,
+removes it, and confirms a clean tree before archiving the session:
 
-# hygiene sweep evidence
-$ git worktree list
-(clean)
-$ git status --porcelain
-(clean)
-scratch files tracked this session: (none)
-session closed and archived: .senior-dev/history/2026-07-05T02-14-09-812Z-poster-fallback.json
-```
-<!-- ![The finish hygiene sweep](docs/media/run-finish-sweep.png) -->
+![The finish hygiene sweep catching and clearing a leftover](docs/media/run-finish-sweep.png)
 
 ---
 
