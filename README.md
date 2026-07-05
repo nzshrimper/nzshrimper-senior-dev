@@ -20,27 +20,21 @@ close-out check.
 
 ## What a run looks like
 
-*A 10–15s GIF of a real run is the strongest lead here — the value is the
-sequence: choose a source, work, the gate stops an unreviewed push, a clean
-finish. Record one, save it as `docs/media/run.gif`, and uncomment the line
-below. The blocks after it are illustrative until real captures land in
-`docs/media/`.*
+Every run opens the same way: the conductor settles which skills drive the
+phases and how the task is classified, before a line of code is touched.
 
-<!-- ![A senior-dev run, start to finish](docs/media/run.gif) -->
+![A senior-dev run: choosing a skill source and classifying the task](docs/media/run.gif)
 
 **1. Every run opens by asking which skills drive it.**
 
-```
-> /senior-dev:start add a poster fallback to the card component
+![The four-way skill-source prompt](docs/media/run-skill-source.png)
 
-senior-dev: which skills should fill the process phases this run?
-  1. own          — this project's own skills
-  2. superpowers  — the canonical chain (default)
-  3. combo        — superpowers plus this repo's skills where they exist
-  4. suggest      — search skills.sh via find-skills and pick
-Your choice is saved to .senior-dev/skills.json (private by default).
-```
-<!-- ![The four-way skill-source prompt](docs/media/run-skill-source.png) -->
+The four sources — your own skills, superpowers, a combination, or a
+`find-skills` search — resolve which skill fills each fixed phase. Your choice
+is saved per-repo in `.senior-dev/skills.json`, private by default.
+
+*(The two scenes below are illustrative until captures land in `docs/media/` —
+`run-gate-block.png` and `run-finish-sweep.png`.)*
 
 **2. The gate blocks an unreviewed push, and says exactly why.**
 
