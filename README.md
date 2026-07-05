@@ -20,8 +20,13 @@ close-out check.
 
 ## What a run looks like
 
-*The blocks below are illustrative. To add real terminal captures, drop PNGs or
-a GIF into `docs/media/` and uncomment the image line under each scene.*
+*A 10–15s GIF of a real run is the strongest lead here — the value is the
+sequence: choose a source, work, the gate stops an unreviewed push, a clean
+finish. Record one, save it as `docs/media/run.gif`, and uncomment the line
+below. The blocks after it are illustrative until real captures land in
+`docs/media/`.*
+
+<!-- ![A senior-dev run, start to finish](docs/media/run.gif) -->
 
 **1. Every run opens by asking which skills drive it.**
 
