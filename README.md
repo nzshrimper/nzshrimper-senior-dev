@@ -37,16 +37,10 @@ is saved per-repo in `.senior-dev/skills.json`, private by default.
 
 Worktree commits need recorded green tests during implement/debug;
 merge/push/PR needs approved reviews, verification, and a complete docs gate.
-A blocked action names the exact missing items:
+A blocked action names the exact missing items and hands you two ways forward —
+resume and clear the gates, or bypass (logged):
 
-```
-senior-dev gate: integration blocked (3 items):
-- review for 'implement' is NEEDS_REVISION, not APPROVED
-- verification phase not done
-- docs gate item 'handover' incomplete
-See /senior-dev:status for detail, or /senior-dev:bypass <reason> to waive (logged).
-```
-*(Illustrative — a live gate-block capture lands here at `docs/media/run-gate-block.png`.)*
+![The integration gate blocking an unreviewed push, with the exact open items](docs/media/run-gate-block.png)
 
 **3. Finish proves the repo is clean, with evidence, not assertions.**
 
