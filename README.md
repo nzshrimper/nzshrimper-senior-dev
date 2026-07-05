@@ -1,35 +1,99 @@
 # senior-dev
 
-Claude Code plugin that orchestrates a disciplined senior-dev coding session:
-classify the task, enforce the right installed-skill chain (superpowers,
-codex, built-in reviews), gate commits/integration/stop on review +
-verification + documentation, and close with a zero-leftovers hygiene sweep.
+> A disciplined senior developer, with a second reviewer over its shoulder, for every Claude Code coding session.
 
-Design spec: `docs/superpowers/specs/2026-07-03-senior-dev-orchestrator-design.md`.
+![version](https://img.shields.io/badge/version-0.1.2-6b2c8a) ![license](https://img.shields.io/badge/license-MIT-1f3a5f) ![tests](https://img.shields.io/badge/tests-105%20passing-4a6b3a) ![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-1a1814)
+
+senior-dev turns an ordinary coding session into a run with rails: it classifies
+the task, insists on the right chain of installed skills, reviews the work with
+Claude **and** a read-only Codex pass, refuses to merge unreviewed or
+undocumented changes, and finishes by proving the repo is clean. It orchestrates
+skills you already have (superpowers, the codex plugin, the built-in
+`/code-review` and `verify`); it duplicates none of them.
+
+It fills a gap no other plugin does: routing across your whole installed skill
+inventory, a cross-model review fired as a named phase gate, a documentation
+gate that blocks completion the way a red test does, and a zero-leftovers
+close-out check.
+
+---
+
+## What a run looks like
+
+*The blocks below are illustrative. To add real terminal captures, drop PNGs or
+a GIF into `docs/media/` and uncomment the image line under each scene.*
+
+**1. Every run opens by asking which skills drive it.**
+
+```
+> /senior-dev:start add a poster fallback to the card component
+
+senior-dev: which skills should fill the process phases this run?
+  1. own          — this project's own skills
+  2. superpowers  — the canonical chain (default)
+  3. combo        — superpowers plus this repo's skills where they exist
+  4. suggest      — search skills.sh via find-skills and pick
+Your choice is saved to .senior-dev/skills.json (private by default).
+```
+<!-- ![The four-way skill-source prompt](docs/media/run-skill-source.png) -->
+
+**2. The gate blocks an unreviewed push, and says exactly why.**
+
+```
+> git push origin main
+
+senior-dev gate: integration blocked (3 items):
+- review for 'implement' is NEEDS_REVISION, not APPROVED
+- verification phase not done
+- docs gate item 'handover' incomplete
+See /senior-dev:status for detail, or /senior-dev:bypass <reason> to waive (logged).
+```
+<!-- ![The commit gate blocking a push](docs/media/run-gate-block.png) -->
+
+**3. Finish proves the repo is clean, with evidence, not assertions.**
+
+```
+> /senior-dev:finish
+
+# hygiene sweep evidence
+$ git worktree list
+(clean)
+$ git status --porcelain
+(clean)
+scratch files tracked this session: (none)
+session closed and archived: .senior-dev/history/2026-07-05T02-14-09-812Z-poster-fallback.json
+```
+<!-- ![The finish hygiene sweep](docs/media/run-finish-sweep.png) -->
+
+---
 
 ## What it adds
 
-- **Conductor skill** (`senior-dev:conductor`) - classifies every coding task
+- **Conductor skill** (`senior-dev:conductor`) — classifies every coding task
   (feature / bug-fix / refactor / quick-fix / docs-only / investigation) and
   routes it through a mandatory chain of installed skills.
-- **SessionStart bootstrap** - in any git repo, announces the conductor and
+- **Skill-source choice** — every run opens by choosing who fills the process
+  phases: your own skills, superpowers, a combination, or a `find-skills`
+  search. Saved per-repo, private by default. (See below.)
+- **SessionStart bootstrap** — in any git repo, announces the conductor and
   resumes in-flight sessions. Silent outside git repos.
-- **Commit/integration gate** (PreToolUse) - worktree commits need recorded
+- **Commit/integration gate** (PreToolUse) — worktree commits need recorded
   green tests during implement/debug; merge/push/PR needs approved reviews,
   verification, and a complete docs gate. Classification is command-aware
   (heredoc/quote stripping, env-prefix and global-flag handling), so quoted
   prose mentioning git is not false-blocked and flag-inserted forms are still
   caught.
-- **Stop gate** - a session claiming "done" with open gate items gets the
+- **Stop gate** — a session claiming "done" with open gate items gets the
   checklist back, once per distinct state (never loops).
-- **Codex phase reviews** - read-only `/codex:review` verdicts per phase,
-  JSON contract, 3-cycle cap, post-review write-detection guard.
-- **Docs gate** - spec, plan, handover, affected docs.
-- **Hygiene sweep** - evidence-based zero-leftovers close.
+- **Codex phase reviews** — read-only `/codex:review` verdicts per phase, a JSON
+  verdict contract, a 3-cycle cap, and a post-review write-detection guard.
+- **Docs gate** — spec, plan, handover, affected docs.
+- **Hygiene sweep** — evidence-based zero-leftovers close.
 
 All hooks fail open: a broken hook never blocks normal work. Gates arm only
 while a session is active. `/senior-dev:bypass <reason>` is the logged escape
-hatch.
+hatch, and a session genuinely parked on external work can stand the stop gate
+down with `state-cli waiting --on "<what>"`.
 
 ## Choosing a skill source
 
@@ -49,7 +113,7 @@ for a domain skill — nothing installs without your yes.
 ## Install
 
 ```bash
-claude plugin marketplace add ~/code/nzshrimper-senior-dev
+claude plugin marketplace add nzshrimper/nzshrimper-senior-dev
 claude plugin install senior-dev@nzshrimper-senior-dev
 # restart Claude Code to load hooks
 ```
@@ -70,15 +134,17 @@ Update flow: edit source, bump both versions in `.claude-plugin/`, then
 ## State
 
 `.senior-dev/state.json` in the target repo (auto-excluded via
-`.git/info/exclude`; never touches your `.gitignore`). Closed sessions are
-archived to `.senior-dev/history/`.
+`.git/info/exclude`; never touches your `.gitignore`). Your per-repo skill
+source lives in `.senior-dev/skills.json`, private by default. Closed sessions
+are archived to `.senior-dev/history/`.
 
 ## Companion plugins
 
-Designed to drive: [superpowers](https://github.com/obra/superpowers)
-(process skills), the OpenAI codex plugin (read-only review lanes), and the
-built-in `/code-review` + `verify` skills. Missing companions degrade
-gracefully and are reported, never silently skipped.
+Designed to drive: [superpowers](https://github.com/obra/superpowers) (process
+skills), the OpenAI codex plugin (read-only review lanes), and the built-in
+`/code-review` + `verify` skills. Missing companions degrade gracefully and are
+reported, never silently skipped — the conductor points you at the exact install
+and offers to run it.
 
 ## Tests
 
@@ -86,8 +152,25 @@ gracefully and are reported, never silently skipped.
 node --test tests/*.test.mjs
 ```
 
+---
+
 ## Built by Foundry Studio
 
-Foundry Studio is a modern build studio in Christchurch, New Zealand. Modern stack, plain language, direct contact. This plugin is free and open, and it is a real piece of work to point at.
+Foundry Studio is a modern build studio in Christchurch, New Zealand. One
+builder, direct contact from first call to production handover. Modern stack,
+plain language, direct contact.
 
-Made with attention. Christchurch, NZ. foundrystudio.app
+This plugin is free and open. It came out of real client work, and it is a real
+piece of work to point at. If it saves you a botched merge, that is the point.
+
+**What the studio does.** Brand identity, design systems, web and app
+development, product strategy, and AI integration, plus the boring bits no one
+else will do. Fixed scope and fixed price where the brief is clear. No surprise
+invoices. Days and weeks rather than quarters.
+
+**Give-back.** One free website rebuild for a South Island organisation or
+person doing genuine good, where a better website could genuinely help the
+cause.
+
+The work is the thing. [foundrystudio.app](https://foundrystudio.app) · Made
+with attention. Christchurch, NZ.
