@@ -167,3 +167,8 @@ cause.
 
 The work is the thing. [foundrystudio.app](https://foundrystudio.app) · Made
 with attention. Christchurch, NZ.
+
+---
+
+[MIT License](LICENSE) · [Privacy](PRIVACY.md) — senior-dev collects nothing
+and runs entirely on your machine.
