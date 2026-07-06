@@ -105,15 +105,21 @@ for a domain skill — nothing installs without your yes.
 
 ## Install
 
+From the terminal — copy, paste, run:
+
 ```bash
 claude plugin marketplace add nzshrimper/nzshrimper-senior-dev
 claude plugin install senior-dev@nzshrimper-senior-dev
 # restart Claude Code to load hooks
 ```
 
-Update flow: edit source, bump both versions in `.claude-plugin/`, then
-`claude plugin marketplace update nzshrimper-senior-dev` and
-`claude plugin update senior-dev@nzshrimper-senior-dev`, restart.
+Or without the terminal: in Claude Code, run `/plugin`, add the marketplace
+`nzshrimper/nzshrimper-senior-dev`, then find **senior-dev** under Discover and
+click Install. Restart Claude Code to load the hooks either way.
+
+<sub>Maintainer update flow: edit source, bump both versions in
+`.claude-plugin/`, then `claude plugin marketplace update nzshrimper-senior-dev`
+and `claude plugin update senior-dev@nzshrimper-senior-dev`, restart.</sub>
 
 ## Commands
 
