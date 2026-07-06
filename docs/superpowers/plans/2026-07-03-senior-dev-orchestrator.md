@@ -1835,11 +1835,11 @@ Expected: all PASS.
 
 - [ ] **Step 2: Dispatch the plugin validator**
 
-Use the Agent tool with `subagent_type: "plugin-dev:plugin-validator"` and prompt: "Validate the Claude Code plugin at /Users/chrisbennett/code/senior-dev - manifest, marketplace.json, hooks/hooks.json, commands frontmatter, skill frontmatter. Report every issue with file and line."
+Use the Agent tool with `subagent_type: "plugin-dev:plugin-validator"` and prompt: "Validate the Claude Code plugin at ~/code/nzshrimper-senior-dev - manifest, marketplace.json, hooks/hooks.json, commands frontmatter, skill frontmatter. Report every issue with file and line."
 
 - [ ] **Step 3: Dispatch the skill reviewer**
 
-Use the Agent tool with `subagent_type: "plugin-dev:skill-reviewer"` and prompt: "Review the skill at /Users/chrisbennett/code/senior-dev/skills/conductor/SKILL.md for description quality (triggering), structure, and best practices. Report concrete improvements."
+Use the Agent tool with `subagent_type: "plugin-dev:skill-reviewer"` and prompt: "Review the skill at ~/code/nzshrimper-senior-dev/skills/conductor/SKILL.md for description quality (triggering), structure, and best practices. Report concrete improvements."
 
 - [ ] **Step 4: Fix every finding from both agents**
 

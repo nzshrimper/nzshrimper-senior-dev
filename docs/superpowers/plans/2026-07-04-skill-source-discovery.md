@@ -749,7 +749,7 @@ Run: `cd ~/code/nzshrimper-senior-dev && node --test tests/*.test.mjs` — all P
 
 - [ ] **Step 2: Plugin validator**
 
-Dispatch `plugin-dev:plugin-validator` on `/Users/chrisbennett/code/nzshrimper-senior-dev`: manifests, hooks, commands, skill frontmatter (description ≤1024), the new reference file reachable, nothing dev-only shipping. Fix every blocker.
+Dispatch `plugin-dev:plugin-validator` on `~/code/nzshrimper-senior-dev`: manifests, hooks, commands, skill frontmatter (description ≤1024), the new reference file reachable, nothing dev-only shipping. Fix every blocker.
 
 - [ ] **Step 3: Skill reviewer**
 
