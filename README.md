@@ -79,6 +79,15 @@ while a session is active. `/senior-dev:bypass <reason>` is the logged escape
 hatch, and a session genuinely parked on external work can stand the stop gate
 down with `state-cli waiting --on "<what>"`.
 
+## Requires Claude Code
+
+The enforcement — the commit/integration gate, the stop gate, and the
+SessionStart bootstrap — is built on Claude Code plugin **hooks**. Cowork does
+not fire plugin hooks (verified 2026-07-07), so those gates are silently inert
+there: the conductor skill, the `/senior-dev:*` commands, and the state CLI
+still run, but the discipline becomes advisory rather than enforced. **Use this
+plugin in Claude Code** for the gates to actually hold.
+
 ## Choosing a skill source
 
 Every run opens by asking which skills fill the process phases:
