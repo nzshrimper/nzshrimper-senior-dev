@@ -82,11 +82,13 @@ down with `state-cli waiting --on "<what>"`.
 ## Requires Claude Code
 
 The enforcement — the commit/integration gate, the stop gate, and the
-SessionStart bootstrap — is built on Claude Code plugin **hooks**. Cowork does
-not fire plugin hooks (verified 2026-07-07), so those gates are silently inert
-there: the conductor skill, the `/senior-dev:*` commands, and the state CLI
-still run, but the discipline becomes advisory rather than enforced. **Use this
-plugin in Claude Code** for the gates to actually hold.
+SessionStart bootstrap — is built on Claude Code plugin **hooks**. Hosts other
+than Claude Code do not fire these hooks (verified in Cowork and OpenAI Codex,
+2026-07), so on those hosts the gates are silently inert: the conductor skill,
+the `/senior-dev:*` commands, and the state CLI still run — Codex and Cowork
+both load the conductor and track state fine — but the discipline is advisory
+rather than enforced. **Use this plugin in Claude Code** for the gates to
+actually hold.
 
 ## Choosing a skill source
 
