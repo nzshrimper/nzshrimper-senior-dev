@@ -21,8 +21,8 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/state-cli.mjs" <subcommand> [flags]
 
 1. Run `node <plugin>/scripts/state-cli.mjs status` (the session bootstrap
    gives the exact path). If it reports an active session, resume at the
-   reported phase — its skill source is already recorded, so skip the rest of
-   §1; do not restart completed phases.
+   reported phase — its skill source and guard answer are already recorded,
+   so skip the rest of §1; do not restart completed phases.
 2. **Skill source (fresh run only, before classifying).** Decide which skills
    fill the process phases this run. Run `node <plugin>/scripts/state-cli.mjs
    skills-config show`.
@@ -49,12 +49,15 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/state-cli.mjs" <subcommand> [flags]
    - `absent` and no recorded answer: ask once — "Install the universal
      enforcement hooks? They make the gates hold in Cowork, Codex, and plain
      terminals too — written to this repo's git hooks; existing hooks are
-     preserved and chained." Yes → `state-cli guard install`. No → the CLI
-     records the decline; never re-ask.
+     preserved and chained." Yes → `state-cli guard install`. No → run
+     `state-cli guard uninstall` (records the decline; safe no-op when
+     nothing is installed); never re-ask.
    - `installed`: proceed silently. `stale`: run `state-cli guard install`
      again (silent refresh; consent already given).
    - `absent` but the config says installed (hooks went missing): mention it
-     once and re-offer.
+     once and re-offer (tell them apart via the `guard` key in step 2's
+     `skills-config show` output — `guard status` prints bare `absent` in
+     both cases).
    - `declined`: stay silent; `/senior-dev:guard` remains available.
 4. Classify the task as exactly one of the types below. If genuinely
    ambiguous, ask the operator ONE multiple-choice question.
@@ -93,13 +96,16 @@ The phase spine never changes; the source decides which skill fills each phase.
   only on an explicit yes.
 
 **Per-phase picker.** When the operator chooses `own` or `combo` — or asks to
-customise skills — offer the picker for the current lane: for each phase show
-the current mapping (`state-cli skills-config resolve --lane <lane>`), the
-project skills you can see, and installed candidates; let the operator pick per
-phase or accept all defaults in one answer. Record picks with
+customise skills — offer the picker for the current lane. Offer it once the
+lane is known — after `init` — or ask the operator which lane to configure
+before running `resolve`/`set-lane`. For each phase show the current mapping
+(`state-cli skills-config resolve --lane <lane>`), the project skills you can
+see, and installed candidates; let the operator pick per phase or accept all
+defaults in one answer. Record picks with
 `state-cli skills-config set-lane <lane> --steps 'phase=skill|fallback,...'`
 (`|` = ordered fallback, first INSTALLED skill wins; skipping an uninstalled
-entry is recorded with `state-cli degrade`). Never hand-edit skills.json.
+entry is recorded with `state-cli degrade` when the phase runs — degrade needs
+an active session). Never hand-edit skills.json.
 
 **Resolution precedence** (the CLI applies it; you honour it): lane mapping →
 flat `steps` → the source's default for that phase.

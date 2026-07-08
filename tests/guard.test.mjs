@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, chmodSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, chmodSync, mkdirSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { writeState, readState, CHAINS, DOCS_GATE, writeSkillsConfig, readSkillsConfig } from '../scripts/lib/state.mjs';
 
 const CLI = new URL('../scripts/state-cli.mjs', import.meta.url).pathname;
@@ -21,10 +21,11 @@ function cli(repo, args, input) {
   } catch (e) { return { status: e.status, out: (e.stdout || '') + (e.stderr || '') }; }
 }
 function hook(repo, name, args = []) {
-  try {
-    const out = execFileSync(join(repo, '.git', 'hooks', name), args, { cwd: repo, encoding: 'utf8' });
-    return { status: 0, out };
-  } catch (e) { return { status: e.status, out: (e.stdout || '') + (e.stderr || '') }; }
+  // spawnSync (not execFileSync) so stderr is captured on the SUCCESS path
+  // too - needed to assert on the shim's "failing open" warning, which is
+  // written to stderr while the shim still exits 0.
+  const r = spawnSync(join(repo, '.git', 'hooks', name), args, { cwd: repo, encoding: 'utf8' });
+  return { status: r.status, out: (r.stdout || '') + (r.stderr || '') };
 }
 function blockedState(overrides = {}) {
   return {
@@ -158,6 +159,16 @@ test('corrupt pass token is purged on sight by a would-block push', () => {
   writeFileSync(tokenPath, '{corrupt');
   assert.equal(hook(repo, 'pre-push').status, 1); // corrupt token grants nothing
   assert.ok(!existsSync(tokenPath), 'corrupt pass.json must be consumed/purged');
+});
+
+test('shim fails open when state-lib.mjs alone is missing (guard.mjs present)', () => {
+  const repo = makeRepo();
+  cli(repo, ['guard', 'install']);
+  writeState(repo, blockedState());
+  unlinkSync(join(repo, '.senior-dev', 'guard', 'state-lib.mjs'));
+  const r = hook(repo, 'pre-push');
+  assert.equal(r.status, 0);
+  assert.ok(r.out.toLowerCase().includes('failing open'), `expected a failing-open warning, got: ${r.out}`);
 });
 
 test('install is idempotent and respects core.hooksPath', () => {

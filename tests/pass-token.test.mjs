@@ -45,18 +45,25 @@ test('allowed integration with guard installed writes a fresh token', () => {
   assert.ok(new Date(tok.expiresAt) > new Date());
 });
 
-test('no token when guard not installed, on block, or for plain commits', () => {
+test('no token when guard not installed, or on a block with no bypass armed', () => {
   const repo = makeRepo();
   writeState(repo, clearState());
   gate(repo, 'git push origin main');                       // guard absent
   assert.ok(!existsSync(tokenPath(repo)));
   execFileSync('node', [CLI, 'guard', 'install'], { cwd: repo });
   writeState(repo, clearState({ docsGate: { handover: false, affectedDocs: true } }));
-  assert.equal(gate(repo, 'git push origin main').blocked, true);  // blocked
+  assert.equal(gate(repo, 'git push origin main').blocked, true);  // blocked, no bypass
   assert.ok(!existsSync(tokenPath(repo)));
+});
+
+test('allowed plain commit with guard installed writes a commit-type token', () => {
+  const repo = makeRepo();
+  execFileSync('node', [CLI, 'guard', 'install'], { cwd: repo });
   writeState(repo, clearState());
-  gate(repo, 'git commit -m x');                            // commit, not integration
-  assert.ok(!existsSync(tokenPath(repo)));
+  assert.equal(gate(repo, 'git commit -m x').blocked, false);
+  const tok = JSON.parse(readFileSync(tokenPath(repo), 'utf8'));
+  assert.equal(tok.type, 'commit');
+  assert.ok(new Date(tok.expiresAt) > new Date());
 });
 
 test('bypassed would-block push writes a token and the git hook honours it', () => {
@@ -89,4 +96,39 @@ test('guard consumes a fresh token and allows; stale token is purged and evaluat
   writeFileSync(tokenPath(repo), JSON.stringify({ type: 'integration', commandHash: 'x', expiresAt: new Date(Date.now() - 1000).toISOString() }));
   assert.equal(run(), 1);
   assert.ok(!existsSync(tokenPath(repo)));
+});
+
+function debugBlockedState(overrides = {}) {
+  // implement in_progress, no tests-green -> a plain COMMIT would block.
+  return clearState({
+    phases: { implement: { status: 'in_progress' } },
+    reviews: [],
+    ...overrides,
+  });
+}
+
+test('bypassed would-block commit writes a commit token; the real pre-commit hook honours it once then blocks again', () => {
+  const repo = makeRepo();
+  execFileSync('node', [CLI, 'guard', 'install'], { cwd: repo });
+  writeState(repo, debugBlockedState());
+  execFileSync('node', [CLI, 'bypass', '--reason', 'test'], { cwd: repo });
+  assert.equal(gate(repo, 'git commit -m x').blocked, false);
+  const tok = JSON.parse(readFileSync(tokenPath(repo), 'utf8'));
+  assert.equal(tok.type, 'commit');
+  const hookP = join(repo, '.git', 'hooks', 'pre-commit');
+  const run = () => { try { execFileSync(hookP, [], { cwd: repo, encoding: 'utf8' }); return 0; } catch (e) { return e.status; } };
+  assert.equal(run(), 0);               // token honoured once
+  assert.ok(!existsSync(tokenPath(repo)));
+  assert.equal(run(), 1);               // token spent, re-evaluated, blocks (no re-arming loop)
+});
+
+test('an integration-type token does not satisfy pre-commit', () => {
+  const repo = makeRepo();
+  execFileSync('node', [CLI, 'guard', 'install'], { cwd: repo });
+  writeState(repo, debugBlockedState());
+  mkdirSync(join(repo, '.senior-dev', 'guard'), { recursive: true });
+  writeFileSync(tokenPath(repo), JSON.stringify({ type: 'integration', commandHash: 'x', expiresAt: new Date(Date.now() + 60000).toISOString() }));
+  const hookP = join(repo, '.git', 'hooks', 'pre-commit');
+  const run = () => { try { execFileSync(hookP, [], { cwd: repo, encoding: 'utf8' }); return 0; } catch (e) { return e.status; } };
+  assert.equal(run(), 1);               // integration token must not satisfy pre-commit
 });

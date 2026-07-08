@@ -86,7 +86,8 @@ COMMON_DIR=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
 [ -n "$COMMON_DIR" ] || exit 0
 REPO_ROOT=$(dirname "$COMMON_DIR")
 GUARD="$REPO_ROOT/.senior-dev/guard/guard.mjs"
-if [ ! -f "$GUARD" ]; then echo "senior-dev guard: bundle missing - failing open" >&2; exit 0; fi
+STATE_LIB="$REPO_ROOT/.senior-dev/guard/state-lib.mjs"
+if [ ! -f "$GUARD" ] || [ ! -f "$STATE_LIB" ]; then echo "senior-dev guard: bundle missing - failing open" >&2; exit 0; fi
 if ! command -v node >/dev/null 2>&1; then echo "senior-dev guard: node not found - failing open" >&2; exit 0; fi
 exec node "$GUARD" ${hookName} "$@"
 `;
@@ -468,13 +469,18 @@ switch (cmd) {
         fail(`skills-config set needs --source ${VALID_SOURCES.join('|')}`);
       }
       const existing = readSkillsConfig(repoRoot) || {};
+      // version:2 unconditionally - readSkillsConfig accepts both, and this
+      // is the only shape that can carry the guard/lanes fields preserved
+      // below without them being silently dropped on a later `set`.
       const cfg = {
-        version: 1,
+        version: 2,
         source: flags.source,
         shared: existing.shared === true,
       };
       if (typeof flags.steps === 'string') cfg.steps = parseSteps(flags.steps);
       else if (existing.steps) cfg.steps = existing.steps;
+      if (existing.guard !== undefined) cfg.guard = existing.guard;
+      if (existing.lanes !== undefined) cfg.lanes = existing.lanes;
       writeSkillsConfig(repoRoot, cfg);
       ensureExcluded(repoRoot);
       console.log(`skills config: source=${cfg.source}${cfg.steps ? ' steps=' + JSON.stringify(cfg.steps) : ''}`);

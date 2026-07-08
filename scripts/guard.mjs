@@ -26,16 +26,20 @@ try {
   const state = readState(repoRoot);
   if (!hasActiveSession(state)) process.exit(0);
 
-  // Pass token: written by the Claude Code gate when it ALLOWED an
-  // integration action. pre-push args carry no original command string, so
-  // we match on type + freshness only; single-use.
-  if (INTEGRATION_HOOKS.has(hookName)) {
+  // Pass token: written by the Claude Code gate when it ALLOWED a gated
+  // action (integration or commit). Hook invocations carry no original
+  // command string, so we match on type + freshness only; single-use,
+  // purged on sight - even when its type doesn't match this hook, so a
+  // token meant for one hook can never be replayed against another later.
+  const expectedTokenType = INTEGRATION_HOOKS.has(hookName) ? 'integration'
+    : hookName === 'pre-commit' ? 'commit' : null;
+  if (expectedTokenType) {
     const tokenPath = join(dirname(fileURLToPath(import.meta.url)), 'pass.json');
     try {
       const raw = readFileSync(tokenPath, 'utf8');
       unlinkSync(tokenPath); // single-use, consumed (or purged) on sight - even corrupt
       const tok = JSON.parse(raw);
-      if (tok.type === 'integration' && new Date(tok.expiresAt) > new Date()) {
+      if (tok.type === expectedTokenType && new Date(tok.expiresAt) > new Date()) {
         process.exit(0);
       }
     } catch {}

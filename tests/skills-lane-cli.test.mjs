@@ -55,3 +55,20 @@ test('resolve defaults lane from active session type, else feature', () => {
   cli(repo, ['init', '--task', 't', '--type', 'bug-fix']);
   assert.ok(cli(repo, ['skills-config', 'resolve']).out.includes('debug:'));      // bug-fix chain
 });
+
+test('skills-config set preserves guard and lanes on a later source switch', () => {
+  const repo = makeRepo();
+  cli(repo, ['skills-config', 'set-lane', 'feature', '--steps', 'implement=my-org:builder']);
+  cli(repo, ['guard', 'install']);
+  const before = readSkillsConfig(repo);
+  assert.equal(before.guard, 'installed');
+  assert.deepEqual(before.lanes.feature, { implement: 'my-org:builder' });
+
+  const r = cli(repo, ['skills-config', 'set', '--source', 'own']);
+  assert.equal(r.status, 0);
+  const after = readSkillsConfig(repo);
+  assert.equal(after.source, 'own');
+  assert.equal(after.guard, 'installed');            // must survive the source switch
+  assert.deepEqual(after.lanes.feature, { implement: 'my-org:builder' }); // must survive too
+  assert.equal(after.version, 2);
+});

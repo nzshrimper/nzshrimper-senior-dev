@@ -146,16 +146,18 @@ async function main() {
       block(blockMsg);
     }
 
-    // Allowed. If this was an integration action and the universal guard is
-    // installed, leave a single-use pass token so the git hook does not
-    // re-evaluate (and cannot double-consume a bypass). Best-effort.
-    if (isIntegration) {
+    // Allowed. If this was a gated action (integration or commit) and the
+    // universal guard is installed, leave a single-use pass token so the
+    // git hook does not re-evaluate (and cannot double-consume a bypass).
+    // Best-effort. A command that is somehow both (`git commit && git push`)
+    // gets the 'integration' token - it is the stricter, later-firing hook.
+    if (isIntegration || isCommit) {
       try {
         if (readSkillsConfig(repoRoot)?.guard === 'installed') {
           const dir = join(repoRoot, '.senior-dev', 'guard');
           mkdirSync(dir, { recursive: true });
           writeFileSync(join(dir, 'pass.json'), JSON.stringify({
-            type: 'integration',
+            type: isIntegration ? 'integration' : 'commit',
             commandHash: createHash('sha256').update(command).digest('hex'),
             expiresAt: new Date(Date.now() + 60_000).toISOString(),
           }));
