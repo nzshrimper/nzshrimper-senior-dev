@@ -2,7 +2,7 @@
 
 > A disciplined senior developer, with a second reviewer over its shoulder, for every Claude Code coding session.
 
-![version](https://img.shields.io/badge/version-0.1.2-6b2c8a) ![license](https://img.shields.io/badge/license-MIT-1f3a5f) ![tests](https://img.shields.io/badge/tests-105%20passing-4a6b3a) ![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-1a1814)
+![version](https://img.shields.io/badge/version-0.2.0-6b2c8a) ![license](https://img.shields.io/badge/license-MIT-1f3a5f) ![tests](https://img.shields.io/badge/tests-130%20passing-4a6b3a) ![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-1a1814)
 
 senior-dev turns an ordinary coding session into a run with rails: it classifies
 the task, insists on the right chain of installed skills, reviews the work with
@@ -79,16 +79,15 @@ while a session is active. `/senior-dev:bypass <reason>` is the logged escape
 hatch, and a session genuinely parked on external work can stand the stop gate
 down with `state-cli waiting --on "<what>"`.
 
-## Requires Claude Code
+## Where the gates hold
 
-The enforcement — the commit/integration gate, the stop gate, and the
-SessionStart bootstrap — is built on Claude Code plugin **hooks**. Hosts other
-than Claude Code do not fire these hooks (verified in Cowork and OpenAI Codex,
-2026-07), so on those hosts the gates are silently inert: the conductor skill,
-the `/senior-dev:*` commands, and the state CLI still run — Codex and Cowork
-both load the conductor and track state fine — but the discipline is advisory
-rather than enforced. **Use this plugin in Claude Code** for the gates to
-actually hold.
+Claude Code is the richest host: the PreToolUse gate stops a gated action
+before it even reaches git, the stop gate challenges premature "done", and the
+SessionStart bootstrap auto-engages the conductor. Other hosts (Cowork, OpenAI
+Codex) don't fire Claude Code plugin hooks (verified 2026-07) — but with the
+universal guard installed, the commit/merge/push gates hold there too, enforced
+by git itself. Without the guard, non-Claude-Code hosts run the conductor and
+state tracking in advisory mode only.
 
 ## Choosing a skill source
 
@@ -104,6 +103,20 @@ run `state-cli skills-config share` to commit it for your team). A missing
 process skill is never a dead end: the conductor gives you the exact install
 command (and offers to run it) for a chain plugin, or `find-skills` candidates
 for a domain skill — nothing installs without your yes.
+
+## Universal enforcement (the guard)
+
+The gates don't have to live only in Claude Code. On first run in a repo the
+conductor offers to install the **universal guard**: real git hooks
+(`pre-commit`, `pre-push`, `pre-merge-commit`) that run the same gate checks
+from a self-contained bundle in `.senior-dev/guard/`. Existing hooks are
+preserved and chained, never clobbered. With the guard installed, an
+unreviewed push is blocked in Cowork, in OpenAI Codex, and in a plain
+terminal — same message, same rules. `/senior-dev:guard` installs, checks, or
+removes it; uninstall restores whatever hooks were there before.
+
+One honest gap: `gh pr create` has no client-side git hook, so PR creation is
+enforced only under Claude Code.
 
 ## Install
 

@@ -38,7 +38,19 @@ Setup: `mkdir -p <scratch>/sd-smoke && cd <scratch>/sd-smoke && git init && git 
         step skill is absent) -> conductor prints the exact install command,
         offers to run it, states the restart caveat, and offers
         proceed-on-fallback vs install-restart-resume.
-15. [ ] Production-mileage note: bypass consumption, degrade fallback, and
+15. [ ] Guard consent: fresh repo run asks once; decline is remembered
+        (state-cli guard status -> declined); /senior-dev:guard install works
+        later.
+16. [ ] Plain-terminal block: with guard installed and open gates staged,
+        `git push` in a NON-agent terminal is blocked with the gate message.
+17. [ ] Token flow (Claude Code): clear all gates, push via the session ->
+        allowed once, no double block, no leftover pass.json.
+18. [ ] Uninstall: prior hook restored byte-identical; guard status -> declined.
+19. [ ] Codex re-test: sd-demo fixture push now BLOCKED in Codex.
+20. [ ] Cowork re-test: sd-demo fixture push now BLOCKED in Cowork.
+21. [ ] Picker: choose combo -> customise implement with a fallback list ->
+        /senior-dev:skills shows it; skills.json is v2.
+22. [ ] Production-mileage note: bypass consumption, degrade fallback, and
         quick-fix escalation have passed smoke but not a real production
         firing - treat their first real-world use with a skeptical eye and
         verify state afterwards.
