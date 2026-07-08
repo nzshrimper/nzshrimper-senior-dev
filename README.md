@@ -143,6 +143,8 @@ and `claude plugin update senior-dev@nzshrimper-senior-dev`, restart.</sub>
 | `/senior-dev:start [task]` | Start or resume an orchestrated session |
 | `/senior-dev:status` | Phase/gate/review/bypass report |
 | `/senior-dev:bypass <reason>` | One-shot logged gate waiver |
+| `/senior-dev:skills [lane]` | Show and customise which skills fill each phase |
+| `/senior-dev:guard [install\|status\|uninstall]` | Manage the universal enforcement git hooks |
 | `/senior-dev:finish` | Final Codex pass, sweep, archive, evidence summary |
 
 ## State
