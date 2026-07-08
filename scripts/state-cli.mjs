@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import {
   CHAINS, DOCS_GATE, findRepoRoot, readState, writeState, statePath,
   hasActiveSession, currentPhase, latestVerdicts, openGateItems, ensureExcluded,
-  VALID_SOURCES, readSkillsConfig, writeSkillsConfig,
+  VALID_SOURCES, readSkillsConfig, writeSkillsConfig, resolveConfiguredSkill, normalizeLaneValue,
 } from './lib/state.mjs';
 
 function fail(msg) {
@@ -490,7 +490,50 @@ switch (cmd) {
       else console.log('skills config is now private (git-excluded).');
       break;
     }
-    fail('skills-config needs a subcommand: show | set | share | unshare');
+    if (sub === 'set-lane') {
+      const lane = positional[1];
+      if (!CHAINS[lane]) fail(`set-lane needs a lane, one of: ${Object.keys(CHAINS).join(', ')}`);
+      requireValues('skills-config set-lane', flags, ['steps']);
+      if (typeof flags.steps !== 'string') fail("set-lane needs --steps 'phase=skill|fallback,...'");
+      const laneMap = {};
+      for (const pair of flags.steps.split(',')) {
+        const t = pair.trim();
+        if (!t) continue;
+        const eq = t.indexOf('=');
+        if (eq < 1) fail(`bad --steps entry '${t}', expected phase=skill[|fallback...]`);
+        const phase = t.slice(0, eq).trim();
+        if (!CHAINS[lane].includes(phase)) fail(`phase '${phase}' is not in the ${lane} chain (${CHAINS[lane].join(', ')})`);
+        const skills = t.slice(eq + 1).split('|').map((s) => s.trim()).filter(Boolean);
+        if (!skills.length) fail(`bad --steps entry '${t}': no skill given`);
+        laneMap[phase] = skills.length === 1 ? skills[0] : skills;
+      }
+      const cfg = readSkillsConfig(repoRoot) || { version: 2, source: 'superpowers', shared: false };
+      cfg.version = 2;
+      cfg.lanes = cfg.lanes || {};
+      cfg.lanes[lane] = { ...(cfg.lanes[lane] || {}), ...laneMap };
+      writeSkillsConfig(repoRoot, cfg);
+      ensureExcluded(repoRoot);
+      console.log(`lane '${lane}' skills: ${JSON.stringify(cfg.lanes[lane])}`);
+      break;
+    }
+    if (sub === 'resolve') {
+      let lane = typeof flags.lane === 'string' ? flags.lane : null;
+      if (!lane) {
+        const st = readState(repoRoot);
+        lane = (hasActiveSession(st) && CHAINS[st.type]) ? st.type : 'feature';
+      }
+      if (!CHAINS[lane]) fail(`resolve --lane must be one of: ${Object.keys(CHAINS).join(', ')}`);
+      const cfg = readSkillsConfig(repoRoot);
+      console.log(`# resolved skills - lane: ${lane} (source: ${cfg?.source || 'superpowers'})`);
+      for (const phase of CHAINS[lane]) {
+        const { value, via } = resolveConfiguredSkill(cfg, lane, phase);
+        console.log(value.length
+          ? `${phase}: ${value.join(' | ')} (via ${via})`
+          : `${phase}: (source default)`);
+      }
+      break;
+    }
+    fail('skills-config needs a subcommand: show | set | share | unshare | set-lane | resolve');
     break;
   }
   case 'skill-source': {
