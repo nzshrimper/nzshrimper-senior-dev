@@ -664,7 +664,32 @@ Expected: first two tests FAIL (no token written); third PASSES already (guard c
 
 Add to imports: `import { createHash } from 'node:crypto';`, `import { writeFileSync, mkdirSync } from 'node:fs';`, `import { join } from 'node:path';`, and add `readSkillsConfig` to the `./lib/state.mjs` import list.
 
-In `main()`, replace the final `process.exit(0);` (after the `if (blockMsg) {...}` block) with:
+**CRITICAL prerequisite (found in review — the original plan text omitted it):
+the bypass-consumed path must FALL THROUGH to the token write.** The existing
+bypass branch `if (consumeBypass(...)) process.exit(0);` exits before the token
+write below is reached — but the bypass-consumed allow is the ONE path where
+the gate's and the guard's verdicts diverge (the guard re-finds the same
+blockers and the spent bypass can't cover them twice). Replace the block:
+
+```js
+    if (blockMsg) {
+      if (consumeBypass(repoRoot, state, command.slice(0, 120))) process.exit(0);
+      block(blockMsg);
+    }
+```
+
+with:
+
+```js
+    // A consumed bypass allows the action but must still fall through to the
+    // token write below - the guard's fresh evaluation would re-find the same
+    // blockers, and the spent bypass cannot cover them twice.
+    if (blockMsg && !consumeBypass(repoRoot, state, command.slice(0, 120))) {
+      block(blockMsg);
+    }
+```
+
+Then, in `main()`, replace the final `process.exit(0);` with:
 
 ```js
     // Allowed. If this was an integration action and the universal guard is
