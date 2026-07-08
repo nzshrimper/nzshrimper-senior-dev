@@ -59,6 +59,20 @@ test('no token when guard not installed, on block, or for plain commits', () => 
   assert.ok(!existsSync(tokenPath(repo)));
 });
 
+test('bypassed would-block push writes a token and the git hook honours it', () => {
+  const repo = makeRepo();
+  execFileSync('node', [CLI, 'guard', 'install'], { cwd: repo });
+  writeState(repo, clearState({ docsGate: { handover: false, affectedDocs: true } }));
+  execFileSync('node', [CLI, 'bypass', '--reason', 'test'], { cwd: repo });
+  assert.equal(gate(repo, 'git push origin main').blocked, false);
+  assert.ok(existsSync(tokenPath(repo)));
+  const hookP = join(repo, '.git', 'hooks', 'pre-push');
+  const run = () => { try { execFileSync(hookP, [], { cwd: repo, encoding: 'utf8' }); return 0; } catch (e) { return e.status; } };
+  assert.equal(run(), 0);
+  assert.ok(!existsSync(tokenPath(repo)));
+  assert.equal(run(), 1);
+});
+
 test('guard consumes a fresh token and allows; stale token is purged and evaluated', () => {
   const repo = makeRepo();
   execFileSync('node', [CLI, 'guard', 'install'], { cwd: repo });

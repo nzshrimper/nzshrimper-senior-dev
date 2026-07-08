@@ -139,8 +139,10 @@ async function main() {
       }
     }
 
-    if (blockMsg) {
-      if (consumeBypass(repoRoot, state, command.slice(0, 120))) process.exit(0);
+    // A consumed bypass allows the action but must still fall through to the
+    // token write below - the guard's fresh evaluation would re-find the same
+    // blockers, and the spent bypass cannot cover them twice.
+    if (blockMsg && !consumeBypass(repoRoot, state, command.slice(0, 120))) {
       block(blockMsg);
     }
 
