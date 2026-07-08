@@ -14,9 +14,9 @@ function makeRepo() {
   execFileSync('git', ['-C', dir, '-c', 'user.email=t@t.com', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'init']);
   return dir;
 }
-function cli(repo, args, input) {
+function cli(repo, args, input, opts = {}) {
   try {
-    const out = execFileSync('node', [CLI, ...args], { cwd: repo, encoding: 'utf8', ...(input ? { input } : {}) });
+    const out = execFileSync('node', [CLI, ...args], { cwd: repo, encoding: 'utf8', ...(input ? { input } : {}), ...opts });
     return { status: 0, out };
   } catch (e) { return { status: e.status, out: (e.stdout || '') + (e.stderr || '') }; }
 }
@@ -181,4 +181,28 @@ test('install is idempotent and respects core.hooksPath', () => {
   execFileSync('git', ['-C', repo2, 'config', 'core.hooksPath', 'myhooks']);
   cli(repo2, ['guard', 'install']);
   assert.ok(existsSync(join(repo2, 'myhooks', 'pre-push')));
+});
+
+test('core.hooksPath with a tilde resolves to the git-expanded dir, never a literal ~ dir', () => {
+  const repo = makeRepo();
+  // Point $HOME at a throwaway temp dir for this subprocess only, so
+  // tilde-expansion of core.hooksPath never touches the real home dir.
+  const fakeHome = mkdtempSync(join(tmpdir(), 'sd-guard-fakehome-'));
+  execFileSync('git', ['-C', repo, 'config', 'core.hooksPath', '~/sd-guard-test-hooks']);
+  const r = cli(repo, ['guard', 'install'], undefined, { env: { ...process.env, HOME: fakeHome } });
+  assert.equal(r.status, 0, r.out);
+
+  const expandedDir = join(fakeHome, 'sd-guard-test-hooks');
+  for (const h of ['pre-commit', 'pre-push', 'pre-merge-commit']) {
+    assert.ok(existsSync(join(expandedDir, h)), `shim for ${h} should land in the tilde-expanded hooks dir`);
+  }
+  // The old bug planted shims at a literal `~` directory inside the repo
+  // (join(repoRoot, '~/sd-guard-test-hooks')) because it never expanded the
+  // tilde itself - assert that dangerous literal directory was never created.
+  assert.ok(!existsSync(join(repo, '~')), 'no literal ~ directory should exist in the repo');
+
+  writeState(repo, blockedState());
+  const hookResult = spawnSync(join(expandedDir, 'pre-push'), ['origin', 'file:///dev/null'], { cwd: repo, encoding: 'utf8' });
+  assert.equal(hookResult.status, 1);
+  assert.ok((hookResult.stdout + hookResult.stderr).includes('senior-dev gate: integration blocked'));
 });

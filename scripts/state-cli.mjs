@@ -66,7 +66,22 @@ function pluginVersion() {
   } catch { return 'unknown'; }
 }
 
+// Resolves the hooks directory via git itself rather than re-implementing
+// core.hooksPath semantics: git tilde-expands `~/foo`, resolves relative
+// paths (e.g. `.husky`) against repoRoot, handles absolute paths, and
+// accounts for worktrees - `--git-path hooks` gets all of that right in one
+// call. Falls back to the previous config-read + startsWith-join logic (and
+// then the bare .git/hooks default) only if the installed git is too old to
+// support `--path-format` (pre-2.31), mirroring the try/catch fallback
+// pattern findRepoRoot uses in scripts/lib/state.mjs.
 function hooksDir(repoRoot) {
+  try {
+    const out = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-path', 'hooks'],
+      { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    if (out) return out;
+  } catch {
+    // fall through to the legacy fallback below (older git without --path-format)
+  }
   try {
     const cfg = execFileSync('git', ['config', 'core.hooksPath'],
       { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
