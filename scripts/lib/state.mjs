@@ -70,12 +70,39 @@ export function skillsConfigPath(repoRoot) {
 export function readSkillsConfig(repoRoot) {
   try {
     const c = JSON.parse(readFileSync(skillsConfigPath(repoRoot), 'utf8'));
-    if (typeof c !== 'object' || c === null || c.version !== 1) return null;
+    if (typeof c !== 'object' || c === null) return null;
+    if (c.version !== 1 && c.version !== 2) return null;
     if (c.source !== undefined && !VALID_SOURCES.includes(c.source)) return null;
+    if (c.guard !== undefined && !['installed', 'declined'].includes(c.guard)) return null;
+    if (c.lanes !== undefined) {
+      if (typeof c.lanes !== 'object' || c.lanes === null || Array.isArray(c.lanes)) return null;
+      for (const laneMap of Object.values(c.lanes)) {
+        if (typeof laneMap !== 'object' || laneMap === null || Array.isArray(laneMap)) return null;
+        for (const v of Object.values(laneMap)) {
+          const ok = typeof v === 'string'
+            || (Array.isArray(v) && v.length > 0 && v.every((s) => typeof s === 'string'));
+          if (!ok) return null;
+        }
+      }
+    }
     return c;
   } catch {
     return null;
   }
+}
+
+export function normalizeLaneValue(v) {
+  return Array.isArray(v) ? v : [v];
+}
+
+// Configured resolution only: lanes -> steps -> default. Which of the
+// value's entries is actually installed is the conductor's judgement.
+export function resolveConfiguredSkill(cfg, laneType, phase) {
+  const laneVal = cfg?.lanes?.[laneType]?.[phase];
+  if (laneVal !== undefined) return { value: normalizeLaneValue(laneVal), via: 'lane' };
+  const stepVal = cfg?.steps?.[phase];
+  if (stepVal !== undefined) return { value: normalizeLaneValue(stepVal), via: 'steps' };
+  return { value: [], via: 'default' };
 }
 
 export function writeSkillsConfig(repoRoot, cfg) {
