@@ -3,10 +3,12 @@
 // implement/debug; integration (merge/push/PR) needs approved reviews,
 // verification, and a full docs gate. Fail open on any error.
 import { pathToFileURL } from 'node:url';
-import { realpathSync } from 'node:fs';
+import { realpathSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import {
   findRepoRoot, readState, hasActiveSession, currentPhase,
-  integrationBlockers, consumeBypass,
+  integrationBlockers, consumeBypass, readSkillsConfig,
 } from './lib/state.mjs';
 
 const TEST_GATED_PHASES = new Set(['implement', 'debug']);
@@ -142,6 +144,22 @@ async function main() {
       block(blockMsg);
     }
 
+    // Allowed. If this was an integration action and the universal guard is
+    // installed, leave a single-use pass token so the git hook does not
+    // re-evaluate (and cannot double-consume a bypass). Best-effort.
+    if (isIntegration) {
+      try {
+        if (readSkillsConfig(repoRoot)?.guard === 'installed') {
+          const dir = join(repoRoot, '.senior-dev', 'guard');
+          mkdirSync(dir, { recursive: true });
+          writeFileSync(join(dir, 'pass.json'), JSON.stringify({
+            type: 'integration',
+            commandHash: createHash('sha256').update(command).digest('hex'),
+            expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          }));
+        }
+      } catch {}
+    }
     process.exit(0);
   } catch {
     process.exit(0);
