@@ -193,8 +193,9 @@ export function ensureExcluded(repoRoot) {
     try { cur = readFileSync(p, 'utf8'); } catch {}
     const shared = readSkillsConfig(repoRoot)?.shared === true;
 
-    // Lines we manage. skills.json is excluded only when NOT shared.
-    const want = ['.senior-dev/state.json', '.senior-dev/history/'];
+    // Lines we manage. skills.json is excluded only when NOT shared; the
+    // guard bundle is machine-local (installed per-clone), always excluded.
+    const want = ['.senior-dev/state.json', '.senior-dev/history/', '.senior-dev/guard/'];
     if (!shared) want.push('.senior-dev/skills.json');
 
     // Start from existing lines, drop the legacy wholesale line and any of
@@ -203,6 +204,7 @@ export function ensureExcluded(repoRoot) {
     const managed = new Set([
       '.senior-dev/', '.senior-dev/state.json',
       '.senior-dev/history/', '.senior-dev/skills.json',
+      '.senior-dev/guard/',
     ]);
     const kept = cur.split('\n').filter((l) => l !== '' && !managed.has(l));
     const out = [...kept, ...want];

@@ -141,6 +141,25 @@ test('guard fails open on corrupt state', () => {
   assert.equal(hook(repo, 'pre-push').status, 0);
 });
 
+test('installed bundle is git-excluded, never untracked dirt', () => {
+  const repo = makeRepo();
+  cli(repo, ['guard', 'install']);
+  const porcelain = execFileSync('git', ['-C', repo, 'status', '--porcelain', '-uall'], { encoding: 'utf8' });
+  assert.ok(!porcelain.includes('.senior-dev/guard'), `bundle shows as dirt:\n${porcelain}`);
+  const exclude = readFileSync(join(repo, '.git', 'info', 'exclude'), 'utf8');
+  assert.ok(exclude.split('\n').includes('.senior-dev/guard/'));
+});
+
+test('corrupt pass token is purged on sight by a would-block push', () => {
+  const repo = makeRepo();
+  cli(repo, ['guard', 'install']);
+  writeState(repo, blockedState());
+  const tokenPath = join(repo, '.senior-dev', 'guard', 'pass.json');
+  writeFileSync(tokenPath, '{corrupt');
+  assert.equal(hook(repo, 'pre-push').status, 1); // corrupt token grants nothing
+  assert.ok(!existsSync(tokenPath), 'corrupt pass.json must be consumed/purged');
+});
+
 test('install is idempotent and respects core.hooksPath', () => {
   const repo = makeRepo();
   cli(repo, ['guard', 'install']);

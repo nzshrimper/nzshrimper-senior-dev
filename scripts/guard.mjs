@@ -32,8 +32,9 @@ try {
   if (INTEGRATION_HOOKS.has(hookName)) {
     const tokenPath = join(dirname(fileURLToPath(import.meta.url)), 'pass.json');
     try {
-      const tok = JSON.parse(readFileSync(tokenPath, 'utf8'));
-      unlinkSync(tokenPath); // single-use, consumed (or purged) on sight
+      const raw = readFileSync(tokenPath, 'utf8');
+      unlinkSync(tokenPath); // single-use, consumed (or purged) on sight - even corrupt
+      const tok = JSON.parse(raw);
       if (tok.type === 'integration' && new Date(tok.expiresAt) > new Date()) {
         process.exit(0);
       }
