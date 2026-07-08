@@ -2,8 +2,12 @@
 // Deterministic state mutations for the senior-dev orchestrator.
 // The conductor skill calls this instead of hand-editing JSON.
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, renameSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+  existsSync, mkdirSync, renameSync, readFileSync, writeFileSync,
+  copyFileSync, chmodSync, unlinkSync,
+} from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   CHAINS, DOCS_GATE, findRepoRoot, readState, writeState, statePath,
   hasActiveSession, currentPhase, latestVerdicts, openGateItems, ensureExcluded,
@@ -50,6 +54,42 @@ function requireValues(cmdName, flags, keys) {
       fail(`${cmdName} needs a value for --${key}`);
     }
   }
+}
+
+const GUARD_HOOKS = ['pre-commit', 'pre-push', 'pre-merge-commit'];
+const SHIM_MARK = '# senior-dev guard shim';
+
+function pluginVersion() {
+  try {
+    const p = join(dirname(fileURLToPath(import.meta.url)), '..', '.claude-plugin', 'plugin.json');
+    return JSON.parse(readFileSync(p, 'utf8')).version || 'unknown';
+  } catch { return 'unknown'; }
+}
+
+function hooksDir(repoRoot) {
+  try {
+    const cfg = execFileSync('git', ['config', 'core.hooksPath'],
+      { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    if (cfg) return cfg.startsWith('/') ? cfg : join(repoRoot, cfg);
+  } catch {}
+  return join(repoRoot, '.git', 'hooks');
+}
+
+function shimSource(hookName) {
+  return `#!/bin/sh
+${SHIM_MARK} (${hookName}) - installed by the senior-dev plugin; 'state-cli guard uninstall' removes it.
+HOOK_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ -x "$HOOK_DIR/${hookName}.pre-senior-dev" ]; then
+  "$HOOK_DIR/${hookName}.pre-senior-dev" "$@" || exit $?
+fi
+COMMON_DIR=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+[ -n "$COMMON_DIR" ] || exit 0
+REPO_ROOT=$(dirname "$COMMON_DIR")
+GUARD="$REPO_ROOT/.senior-dev/guard/guard.mjs"
+if [ ! -f "$GUARD" ]; then echo "senior-dev guard: bundle missing - failing open" >&2; exit 0; fi
+if ! command -v node >/dev/null 2>&1; then echo "senior-dev guard: node not found - failing open" >&2; exit 0; fi
+exec node "$GUARD" ${hookName} "$@"
+`;
 }
 
 function parseSteps(raw) {
@@ -344,6 +384,77 @@ switch (cmd) {
     console.log(`session closed and archived: ${dest}`);
     break;
   }
+  case 'guard': {
+    const sub = positional[0];
+    const scriptsDir = dirname(fileURLToPath(import.meta.url));
+    const bundleDir = join(repoRoot, '.senior-dev', 'guard');
+    const dir = hooksDir(repoRoot);
+
+    if (sub === 'install') {
+      mkdirSync(bundleDir, { recursive: true });
+      copyFileSync(join(scriptsDir, 'guard.mjs'), join(bundleDir, 'guard.mjs'));
+      copyFileSync(join(scriptsDir, 'lib', 'state.mjs'), join(bundleDir, 'state-lib.mjs'));
+      writeFileSync(join(bundleDir, 'version'), pluginVersion() + '\n');
+      let dirWritable = true;
+      try { mkdirSync(dir, { recursive: true }); } catch { dirWritable = false; }
+      if (!dirWritable) {
+        fail(`cannot write to hooks dir ${dir} - add the shims manually: for each of ${GUARD_HOOKS.join(', ')}, exec node "${join(bundleDir, 'guard.mjs')}" <hook-name>`);
+      }
+      for (const h of GUARD_HOOKS) {
+        const p = join(dir, h);
+        try {
+          const existing = readFileSync(p, 'utf8');
+          if (!existing.includes(SHIM_MARK)) renameSync(p, join(dir, `${h}.pre-senior-dev`));
+        } catch {}
+        writeFileSync(p, shimSource(h));
+        chmodSync(p, 0o755);
+      }
+      const cfg = readSkillsConfig(repoRoot) || { version: 2, source: 'superpowers', shared: false };
+      cfg.version = 2;
+      cfg.guard = 'installed';
+      writeSkillsConfig(repoRoot, cfg);
+      ensureExcluded(repoRoot);
+      console.log(`guard installed: bundle at .senior-dev/guard/, hooks (${GUARD_HOOKS.join(', ')}) in ${dir}`);
+      break;
+    }
+    if (sub === 'status') {
+      const cfg = readSkillsConfig(repoRoot);
+      const bundleOk = existsSync(join(bundleDir, 'guard.mjs')) && existsSync(join(bundleDir, 'state-lib.mjs'));
+      const wired = GUARD_HOOKS.filter((h) => {
+        try { return readFileSync(join(dir, h), 'utf8').includes(SHIM_MARK); } catch { return false; }
+      });
+      let verdict;
+      if (cfg?.guard === 'declined') verdict = 'declined';
+      else if (!bundleOk || wired.length === 0) verdict = 'absent';
+      else {
+        let stamped = '';
+        try { stamped = readFileSync(join(bundleDir, 'version'), 'utf8').trim(); } catch {}
+        verdict = stamped === pluginVersion() ? 'installed' : 'stale';
+      }
+      console.log(`guard: ${verdict}${wired.length ? ` (hooks wired: ${wired.join(', ')})` : ''}`);
+      break;
+    }
+    if (sub === 'uninstall') {
+      for (const h of GUARD_HOOKS) {
+        const p = join(dir, h);
+        try {
+          if (readFileSync(p, 'utf8').includes(SHIM_MARK)) unlinkSync(p);
+        } catch {}
+        try { renameSync(join(dir, `${h}.pre-senior-dev`), p); } catch {}
+      }
+      for (const f of ['guard.mjs', 'state-lib.mjs', 'version', 'pass.json']) {
+        try { unlinkSync(join(bundleDir, f)); } catch {}
+      }
+      const cfg = readSkillsConfig(repoRoot) || { version: 2, source: 'superpowers', shared: false };
+      cfg.version = 2;
+      cfg.guard = 'declined';
+      writeSkillsConfig(repoRoot, cfg);
+      console.log('guard uninstalled: shims removed, any preserved hooks restored');
+      break;
+    }
+    fail('guard needs a subcommand: install | status | uninstall');
+    break;
+  }
   case 'skills-config': {
     const sub = positional[0];
     if (sub === 'show') {
@@ -401,5 +512,5 @@ switch (cmd) {
     break;
   }
   default:
-    fail(`unknown subcommand '${cmd || ''}'. Use: init|phase|tests-green|review|docs|degrade|bypass|waiting|scratch|skills-config|skill-source|status|sweep|finish`);
+    fail(`unknown subcommand '${cmd || ''}'. Use: init|phase|tests-green|review|docs|degrade|bypass|waiting|scratch|skills-config|skill-source|guard|status|sweep|finish`);
 }
